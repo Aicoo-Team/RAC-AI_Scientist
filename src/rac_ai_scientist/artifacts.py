@@ -15,11 +15,7 @@ PRIVATE_TOP_LEVEL = {
     ".rac",
     "agent_laboratory",
     "state_saves",
-    "d2p_native",
-    "auto_research",
-    "ai_researcher_native",
     "evo_scientist_native",
-    "auto_research_claw_native",
 }
 SYSTEM_SIDE_EFFECTS = {
     ".env_provision.log",

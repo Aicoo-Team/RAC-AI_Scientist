@@ -30,10 +30,19 @@ build/
 
 # Experiment outputs
 runs/
+queues/
+exports/
 workspaces/
 results/
 prepared_tasks/
 *.log
+*.tar
+*.tar.gz
+*.sha256
+*.sha512
+
+# Generated per-episode runtimes
+.conda_env/
 
 # Editors / OS
 .DS_Store

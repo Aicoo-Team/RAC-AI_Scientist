@@ -48,7 +48,7 @@ class ScorePreflightTests(unittest.TestCase):
                     {
                         "episode_id": "ep",
                         "task_id": "Math_000",
-                        "host": "auto_research_claw",
+                        "host": "evo_scientist",
                         "condition": "N0",
                     }
                 ),

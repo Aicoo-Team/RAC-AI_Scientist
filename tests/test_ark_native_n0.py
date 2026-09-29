@@ -14,9 +14,6 @@ from rac_ai_scientist.hosts.ark import (
     ArkBridge,
 )
 from rac_ai_scientist.hosts.agent_laboratory import AgentLaboratoryBridge
-from rac_ai_scientist.hosts.ai_researcher import AIResearcherBridge
-from rac_ai_scientist.hosts.auto_research_claw import AutoResearchClawBridge
-from rac_ai_scientist.hosts.data_to_paper import DataToPaperBridge
 from rac_ai_scientist.hosts.evo_scientist import EvoScientistBridge
 from rac_ai_scientist.ledger import JsonlLedger
 from rac_ai_scientist.schemas import Budget, NativeRunResult, Usage
@@ -116,18 +113,11 @@ class ArkNativeN0Tests(unittest.TestCase):
             self.assertFalse(_uses_sharednet(host, "N0"))
             for condition in ("R1", "R2", "R3"):
                 self.assertTrue(_uses_sharednet(host, condition))
-        for retired in ("data_to_paper", "ai_researcher", "auto_research_claw"):
-            for condition in ("N0", "R1", "R2", "R3"):
-                self.assertFalse(_uses_sharednet(retired, condition))
-
     def test_every_host_implements_its_own_native_entrypoint(self):
         for bridge_type in (
             ArkBridge,
             AgentLaboratoryBridge,
-            DataToPaperBridge,
-            AIResearcherBridge,
             EvoScientistBridge,
-            AutoResearchClawBridge,
         ):
             self.assertIn("initialize_native", bridge_type.__dict__)
             self.assertIn("run_native", bridge_type.__dict__)

@@ -3,6 +3,8 @@
 __pycache__
 *.pyc
 runs
+queues
+exports
 upstreams
 ARK
 AgentLaboratory-main

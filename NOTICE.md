@@ -6,10 +6,7 @@ projects that retain their own copyright and license terms:
 - ARK / ARK-sharednet — Apache License 2.0.
 - Runtime Agent Coordination — MIT License.
 - Agent Laboratory — MIT License.
-- data-to-paper — MIT License.
-- AI-Researcher — MIT License.
 - EvoScientist — Apache License 2.0.
-- AutoResearchClaw — MIT License.
 - ResearchClawBench — MIT License.
 
 Source URLs and frozen revisions or local snapshot fingerprints are recorded in

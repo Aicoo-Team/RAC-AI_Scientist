@@ -25,9 +25,8 @@ ResearchClawBench task workspace
         `-- EvoScientist
 ```
 
-The data-to-paper, AI-Researcher, and AutoResearchClaw bridges remain available
-only to reproduce historical runs; they are excluded from the active matrix and
-do not join SharedNet.
+Retired experimental bridges are not shipped in the supported branch. Their
+implementations remain available through repository history for provenance.
 
 The bridge owns translation, not policy. It may:
 
@@ -67,11 +66,9 @@ material.
 
 ## Environment boundary
 
-The six hosts cannot safely share one Python environment. ARK uses modern
+The three hosts cannot safely share one Python environment. ARK uses modern
 LiteLLM/OpenAI dependencies, Agent Laboratory has a large pinned ML stack, and
-data-to-paper 1.1.22 pins the pre-1.0 OpenAI client and PySide. AI-Researcher,
-EvoScientist, and AutoResearchClaw add separate MetaChain, DeepAgents/LangGraph,
-and ResearchClaw pipeline stacks. Each host therefore runs in its own
+EvoScientist adds its own DeepAgents/LangGraph stack. Each host therefore runs in its own
 image/virtual environment. The small integration package is
 installed inside each image and imports only that image's host bridge; no two
 host dependency stacks share a process. Episode state and coordination traces

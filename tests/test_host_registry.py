@@ -15,6 +15,3 @@ class HostRegistryTests(unittest.TestCase):
             SHAREDNET_HOST_IDS,
             ("ark", "agent_laboratory", "evo_scientist"),
         )
-        self.assertNotIn("data_to_paper", SHAREDNET_HOST_IDS)
-        self.assertNotIn("ai_researcher", SHAREDNET_HOST_IDS)
-        self.assertNotIn("auto_research_claw", SHAREDNET_HOST_IDS)

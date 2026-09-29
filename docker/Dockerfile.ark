@@ -30,7 +30,7 @@ COPY upstream.lock.json /opt/integration/upstream.lock.json
 
 RUN python -m pip install --no-cache-dir -e '/opt/host[research]' -e /opt/integration \
     && python -m pip install --no-cache-dir uv \
-    && uv tool install --python 3.12 openhands
+    && uv tool install --python 3.12 'openhands==1.21.0'
 
 # This Azure deployment exposes GPT-5.5 through Chat Completions. OpenHands
 # otherwise selects Responses API from the model-name registry.

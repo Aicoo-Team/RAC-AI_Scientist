@@ -15,10 +15,7 @@ class ManifestTests(unittest.TestCase):
             {
                 "ark",
                 "agent_laboratory",
-                "data_to_paper",
-                "ai_researcher",
                 "evo_scientist",
-                "auto_research_claw",
             },
         )
         for manifest in manifests:
