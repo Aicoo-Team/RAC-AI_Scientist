@@ -1,0 +1,40 @@
+name: Bug report
+description: Report an installation, CLI, or runtime failure with a minimal reproduction.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private endpoints, live SharedNet invites, benchmark answers, or personal information. Read SECURITY.md before reporting sensitive findings; this form is public.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Explain what you expected and what happened. Include the error message with sensitive details removed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide commands and a small synthetic example where possible. Do not attach private task inputs or benchmark targets.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Revision and environment
+      description: Include integration commit, OS/architecture, Python version, and install method. For host failures, add host/condition, upstream revision, image ID, and non-secret provider/model identifier.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks and evidence
+      description: List tests, doctor or preflight commands you ran and their outcomes. Link only redacted logs; distinguish offline checks from live runs. State checks you could not run.
+  - type: checkboxes
+    id: review
+    attributes:
+      label: Before submitting
+      options:
+        - label: I reviewed this public report and attachments for sensitive information and benchmark answers.
+          required: true
