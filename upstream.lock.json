@@ -28,26 +28,6 @@
       "tree_sha256": "a59e23a5a218f66d8ddb53cdaf40e3faa92592beebfc2881eaf7cf5bcecff73e",
       "license": "MIT"
     },
-    "data_to_paper": {
-      "url": "https://github.com/Technion-Kishony-lab/data-to-paper.git",
-      "revision": "81df14c4b9600466e645c3b2b336cc54daa3df3a",
-      "required_for_live": true,
-      "version_observed": "1.1.22",
-      "local_snapshot": "data-to-paper-main",
-      "tree_sha256": "16922fb5121701361f0ca2de87efe5003938fcaa6c3e2b1df760fa010d1cd0af",
-      "license": "MIT"
-    },
-    "ai_researcher": {
-      "url": "https://github.com/HKUDS/AI-Researcher.git",
-      "revision": "f9a6f8480860c193afff600eeffe3defcee8a978",
-      "required_for_live": true,
-      "version_observed": "0.2.0",
-      "local_snapshot": "AI-Researcher-main",
-      "tree_sha256": "a952224ea0e3216f9c6cff1c30444afef04a9d8bb0bbb206c60df2125c8ec0c6",
-      "snapshot_tree_sha256": "48de1aef80d0fe39fe1148441e992d3b22a20f49678801d62ca005990129c528",
-      "license": "MIT",
-      "note": "The Windows archive snapshot normalizes ':' to '_' and omits seven '?' filenames; all 1,457 present files match the revision. Fresh bootstraps retain the canonical 1,464-file Git tree."
-    },
     "evo_scientist": {
       "url": "https://github.com/EvoScientist/EvoScientist.git",
       "revision": "418abca4f40a4080604834536342492dfd8bdf3e",
@@ -57,15 +37,6 @@
       "tree_sha256": "4f7c72a69bee443c619b59a9c110f799565eabf75d5fdaae74504d8cfe0ecf15",
       "runtime_tree_sha256": "0fd8cfb5fd2c987d7d95090546497db848dca0b9229c66e077c18b3c90e8b82c",
       "license": "Apache-2.0"
-    },
-    "auto_research_claw": {
-      "url": "https://github.com/aiming-lab/AutoResearchClaw.git",
-      "revision": "be4ba4755bf1b52220f25e13b2293b5956590070",
-      "required_for_live": true,
-      "version_observed": "0.5.0",
-      "local_snapshot": "AutoResearchClaw-main",
-      "tree_sha256": "e02d651fa3579b0fb878130deef5be6dff10cd40977e5df0fc6099e9b9326d6b",
-      "license": "MIT"
     },
     "researchclawbench": {
       "url": "https://github.com/InternScience/ResearchClawBench.git",

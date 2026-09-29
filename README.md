@@ -1,10 +1,10 @@
 # RAC × AI Scientist
 
 This repository is the integration and evaluation layer for applying Runtime
-Agent Coordination (RAC) to three active AI-scientist hosts—ARK, Agent
-Laboratory, and EvoScientist—and evaluating them on ResearchClawBench. Earlier
-data-to-paper, AI-Researcher, and AutoResearchClaw integrations remain for
-historical reproducibility but are excluded from new experiments.
+Agent Coordination (RAC) to three AI-scientist hosts—ARK, Agent Laboratory,
+and EvoScientist—and evaluating them on ResearchClawBench. The public active
+branch intentionally contains only these supported hosts. Retired adapters
+remain available through Git history rather than in the supported runtime.
 
 The repository deliberately keeps upstream projects separate. The integration
 package owns the shared N0–R3 policy, schemas, accounting, host bridges, and
@@ -35,14 +35,9 @@ episode, discard artifacts, or force a retry.
 Every N0 episode bypasses the RAC episode runner. The integration layer invokes
 the host-owned top-level lifecycle once and records only the native boundary,
 artifacts, usage, and terminal state: ARK `Orchestrator.run()`, Agent Laboratory
-`LaboratoryWorkflow.perform_research()`, data-to-paper `run_all_steps()`,
-AutoResearchClaw `execute_pipeline()`, and one complete EvoScientist Deep Agent
-job. ARK retains native caps of three development and three paper-review
-iterations. AI-Researcher's published Level-1 launcher is coupled to its own ML
-benchmark schema and nested Docker layout; its N0 compatibility path keeps the
-native MetaChain agents and fixed Level-1 ordering while mapping a sanitized
-ResearchClawBench workspace into that flow. It is reported explicitly as a
-compatibility-native run, not as an unmodified invocation of the upstream CLI.
+`LaboratoryWorkflow.perform_research()`, and one complete EvoScientist Deep
+Agent job. ARK retains native caps of three development and three paper-review
+iterations.
 R1--R3 continue to use the capability-level RAC runner for every active host.
 All three active bridges use a fresh SharedNet Room as the communication plane
 while RAC remains the routing, contract, verification, and stopping control
@@ -53,10 +48,10 @@ verdict itself never stops, retries, or rolls back a step.
 
 ## Repository boundary
 
-The eight source directories currently collected beside this file are local
-read-only snapshots and are ignored by Git. `upstream.lock.json` records their
-provenance. Fresh checkouts should be placed under `upstreams/` by the bootstrap
-script; generated runs go under `runs/`.
+Upstream projects are not vendored. `upstream.lock.json` records their URLs,
+frozen revisions, and expected tree hashes. The bootstrap script places fresh
+checkouts under ignored `upstreams/`; generated episodes go under ignored
+`runs/` and archives under ignored `exports/`.
 
 ```text
 configs/                  shared experiment and host-interface declarations
@@ -73,26 +68,27 @@ runs/                     ignored generated episodes and ledgers
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e .
-rac-ai-scientist doctor --config configs/experiment.example.json
 python -m unittest discover -s tests -v
+python scripts/check_secrets.py
 ```
 
-PowerShell activation is `.venv\Scripts\Activate.ps1`. `doctor` is read-only and
-does not call a model. Live execution remains disabled until all upstream
-revisions, host environments, credentials, task selection, and budget fields are
-explicitly configured.
+PowerShell activation is `.venv\Scripts\Activate.ps1`. These checks do not call
+a model. Live execution remains disabled until all upstream revisions, host
+environments, credentials, task selection, and budget fields are explicitly
+configured.
 
 To materialize resolved upstream revisions, run `python scripts/bootstrap.py`.
-The collected dependencies are revision-pinned. The private/unpublished RAC
-research snapshot is optional because the runnable experiment profile lives in
-this repository; `--allow-floating` remains an explicit, non-reproducible
-development escape hatch.
+All required host and benchmark dependencies are revision-pinned. The optional
+RAC design-source entry has no public frozen revision and is skipped by default;
+the runnable N0–R3 implementation is self-contained in this repository.
+`--allow-floating` remains an explicit, non-reproducible development escape
+hatch.
 
-AI-Researcher's upstream tree contains filenames that are illegal on Windows
-(`:` and `?`). The collected Windows snapshot records its portable extraction
-hash and seven omitted template files separately from the canonical Git tree.
-For a byte-complete bootstrap of that host, clone/build on a Linux filesystem;
-the adapter does not depend on those omitted writing-template filenames.
+After bootstrap, validate the example matrix without calling a model:
+
+```bash
+rac-ai-scientist doctor --config configs/experiment.example.json
+```
 
 After filling a copied experiment config, expand the complete Cartesian product
 without calling a model:
@@ -358,3 +354,16 @@ already implements mechanisms it explicitly does not.
 
 See `docs/architecture.md` for the implementation boundary and staged delivery
 plan.
+
+## Project policies
+
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Public runbook](docs/runbook.md)
+- [Chinese public runbook](docs/runbook.zh-CN.md)
+- [Third-party notices](NOTICE.md)
+
+This project is an alpha research integration. Reproduce claims from frozen
+revisions, complete episode records, and score artifacts rather than from log
+snippets alone.

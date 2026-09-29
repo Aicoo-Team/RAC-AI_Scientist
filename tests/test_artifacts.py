@@ -32,9 +32,19 @@ class ArtifactTests(unittest.TestCase):
 
     def test_snapshot_classifies_survey_as_literature(self):
         with tempfile.TemporaryDirectory() as raw:
-            survey = Path(raw) / "state" / "ai_researcher" / "survey.md"
+            survey = Path(raw) / "state" / "agent_laboratory" / "survey.md"
             survey.parent.mkdir(parents=True)
             survey.write_text("literature review", encoding="utf-8")
+
+            records = snapshot_workspace(Path(raw))
+
+            self.assertEqual(records[0].kind, "literature")
+
+    def test_literature_review_is_not_classified_as_terminal_review(self):
+        with tempfile.TemporaryDirectory() as raw:
+            review = Path(raw) / "state" / "agent_laboratory" / "literature_review.txt"
+            review.parent.mkdir(parents=True)
+            review.write_text("related work", encoding="utf-8")
 
             records = snapshot_workspace(Path(raw))
 

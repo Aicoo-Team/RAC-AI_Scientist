@@ -389,10 +389,7 @@ def _doctor_host(args: argparse.Namespace) -> int:
     requirements = {
         "ark": (("yaml", "litellm"), ("openhands",)),
         "agent_laboratory": (("openai", "torch", "yaml", "pypdf"), ()),
-        "data_to_paper": (("openai", "pandas", "PySide6"), ("pdflatex",)),
-        "ai_researcher": (("litellm", "pydantic", "tiktoken", "torch"), ()),
         "evo_scientist": (("deepagents", "langchain", "langgraph", "yaml"), ()),
-        "auto_research_claw": (("yaml", "rich", "numpy"), ()),
     }
     import shutil
 
