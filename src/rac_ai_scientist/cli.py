@@ -18,15 +18,19 @@ from .runner import EpisodeRunner
 from .sharednet import SharedNetInvite, load_sharednet_env
 from .schemas import Budget, to_jsonable
 from .provenance import tree_hash
-from .hosts.registry import HOST_IDS, local_snapshot_name, make_bridge
+from .hosts.registry import HOST_IDS, SHAREDNET_HOST_IDS, local_snapshot_name, make_bridge
 
 
 def _uses_host_native_n0(host: str, condition: str) -> bool:
     return host in HOST_IDS and condition == "N0"
 
 
+def _uses_sharednet(host: str, condition: Condition | str) -> bool:
+    return host in SHAREDNET_HOST_IDS and Condition.parse(condition).enables("runtime_communication")
+
+
 def _execute_episode(bridge, condition: str, ledger: JsonlLedger, *, hard_hop_limit: int, review_score_threshold: float):
-    """Execute every N0 with its host scheduler; reserve RAC for R1--R5."""
+    """Execute every N0 with its host scheduler; reserve RAC for R1--R3."""
     if _uses_host_native_n0(bridge.host_id, condition):
         ledger.append({"type": "native_run_start", "host": bridge.host_id, "condition": condition})
         native_result = bridge.run_native()
@@ -87,6 +91,38 @@ def _prepare_task(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_score_failure(score_path: Path, task_id: str | None, message: str) -> int:
+    result = {"task_id": task_id, "total_score": None, "error": message}
+    score_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 2
+
+
+def _score_preflight(workspace: Path) -> list[str]:
+    errors: list[str] = []
+    required = {
+        "report": workspace / "report" / "report.md",
+        "instructions": workspace / "INSTRUCTIONS.md",
+    }
+    for label, path in required.items():
+        if not path.is_file() or not path.read_text(encoding="utf-8", errors="replace").strip():
+            errors.append(f"missing or empty {label}: {path.relative_to(workspace)}")
+
+    instructions = required["instructions"]
+    if instructions.is_file():
+        text = instructions.read_text(encoding="utf-8", errors="replace").lower()
+        requires_evidence = "persist executable analysis in code/" in text
+        if requires_evidence:
+            evidence = []
+            for name in ("code", "outputs"):
+                root = workspace / name
+                if root.is_dir():
+                    evidence.extend(path for path in root.rglob("*") if path.is_file() and path.stat().st_size > 0)
+            if not evidence:
+                errors.append("no nonempty analysis artifact exists under code/ or outputs/")
+    return errors
+
+
 def _score_episode(args: argparse.Namespace) -> int:
     episode_dir = Path(args.episode_dir).resolve()
     workspace = episode_dir / "workspace"
@@ -94,43 +130,45 @@ def _score_episode(args: argparse.Namespace) -> int:
     if not metadata_path.is_file():
         raise FileNotFoundError(f"missing episode metadata: {metadata_path}")
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert_no_target_study(workspace)
-    report = workspace / "report" / "report.md"
     score_path = episode_dir / "score.json"
-    if not report.is_file() or not report.read_text(encoding="utf-8", errors="replace").strip():
-        result = {"task_id": metadata.get("task_id"), "total_score": None, "error": "No report found in workspace"}
-        score_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-        print(json.dumps(result, indent=2))
-        return 2
-    benchmark = Path(args.benchmark).resolve()
-    if not (benchmark / "evaluation" / "score.py").is_file():
-        raise FileNotFoundError(f"ResearchClawBench checkout not found: {benchmark}")
-    (workspace / "_meta.json").write_text(
-        json.dumps(
-            {
-                "run_id": metadata["episode_id"],
-                "task_id": metadata["task_id"],
-                "agent_name": f"{metadata['host']}+{metadata['condition']}",
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    sys.path.insert(0, str(benchmark))
-    from evaluation import score as score_module
+    task_id = metadata.get("task_id")
+    try:
+        assert_no_target_study(workspace)
+        preflight_errors = _score_preflight(workspace)
+        if preflight_errors:
+            return _write_score_failure(score_path, task_id, "; ".join(preflight_errors))
 
-    # Provider adaptation lives in RAC, never in the pinned benchmark checkout.
-    # The default provider remains available for local/offline benchmark use.
-    from .judge import assert_complete_score, configure_researchclawbench_scorer
+        benchmark = Path(args.benchmark).resolve()
+        if not (benchmark / "evaluation" / "score.py").is_file():
+            raise FileNotFoundError(f"ResearchClawBench checkout not found: {benchmark}")
+        (workspace / "_meta.json").write_text(
+            json.dumps(
+                {
+                    "run_id": metadata["episode_id"],
+                    "task_id": metadata["task_id"],
+                    "agent_name": f"{metadata['host']}+{metadata['condition']}",
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        sys.path.insert(0, str(benchmark))
+        from evaluation import score as score_module
 
-    configure_researchclawbench_scorer(score_module)
-    result = score_module.score_workspace(workspace)
-    if not isinstance(result, dict):
-        raise RuntimeError("ResearchClawBench returned a non-object score result")
-    assert_complete_score(result)
-    score_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    return 2 if "error" in result else 0
+        # Provider adaptation lives in RAC, never in the pinned benchmark checkout.
+        # The default provider remains available for local/offline benchmark use.
+        from .judge import assert_complete_score, configure_researchclawbench_scorer
+
+        configure_researchclawbench_scorer(score_module)
+        result = score_module.score_workspace(workspace)
+        if not isinstance(result, dict):
+            raise RuntimeError("ResearchClawBench returned a non-object score result")
+        assert_complete_score(result)
+        score_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
+    except Exception as exc:
+        return _write_score_failure(score_path, task_id, f"Scoring failed: {exc}")
 
 
 def _resolve_upstream(root: Path, host: str) -> Path:
@@ -186,7 +224,7 @@ def _run_one(args: argparse.Namespace) -> int:
     if not objective:
         raise ValueError("ResearchClawBench task has an empty objective")
     condition = Condition.parse(args.condition)
-    uses_sharednet = args.host == "ark" and condition.enables("runtime_communication")
+    uses_sharednet = _uses_sharednet(args.host, condition)
     sharednet_settings: dict[str, str] = {}
     if uses_sharednet:
         sharednet_env_file = (
@@ -202,13 +240,13 @@ def _run_one(args: argparse.Namespace) -> int:
     ).strip() if uses_sharednet else ""
     if uses_sharednet:
         if not sharednet_room_id:
-            raise ValueError("ARK R1-R5 requires SHAREDNET_ROOM_ID in the run-space .env, process environment, or --sharednet-room-id")
+            raise ValueError(f"{args.host} R1-R3 requires SHAREDNET_ROOM_ID in the run-space .env, process environment, or --sharednet-room-id")
         invite_text = (
             sharednet_settings.get("SHAREDNET_INVITE")
             or os.environ.get("SHAREDNET_INVITE", "")
         ).strip()
         if not invite_text:
-            raise ValueError("ARK R1-R5 requires SHAREDNET_INVITE in the run-space .env or process environment")
+            raise ValueError(f"{args.host} R1-R3 requires SHAREDNET_INVITE in the run-space .env or process environment")
         sharednet_base_url = (
             sharednet_settings.get("SHAREDNET_BASE_URL")
             or os.environ.get("SHAREDNET_BASE_URL", "https://www.sharednet.ai")
@@ -291,6 +329,8 @@ def _run_one(args: argparse.Namespace) -> int:
             raise ValueError(f"{args.host} checkout does not match upstream.lock.json")
         initializer = bridge.initialize_native if host_native_n0 else bridge.initialize
         initializer(episode_id=episode_id, workspace=workspace, objective=objective, seed=args.seed)
+        if uses_sharednet:
+            bridge.initialize_communication()
         outcome, native_result = _execute_episode(
             bridge,
             args.condition,
@@ -391,7 +431,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--project-root", default=str(Path(__file__).resolve().parents[2]))
     run.add_argument("--host", required=True, choices=HOST_IDS)
     run.add_argument("--upstream", help="explicit host checkout (or set RAC_HOST_ROOT)")
-    run.add_argument("--condition", required=True, choices=("N0", "R1", "R2", "R3", "R4", "R5"))
+    run.add_argument("--condition", required=True, choices=("N0", "R1", "R2", "R3"))
     run.add_argument("--sharednet-room-id", help="unique SharedNet Room for this episode (or set SHAREDNET_ROOM_ID)")
     run.add_argument("--sharednet-env-file", help="dotenv file for this run (defaults to <task-dir>/.env)")
     run.add_argument("--task-dir", required=True)

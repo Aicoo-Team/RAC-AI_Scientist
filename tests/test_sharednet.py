@@ -1,7 +1,12 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from rac_ai_scientist.bridge import HostBridge
+from rac_ai_scientist.schemas import InvocationResult
 from rac_ai_scientist.sharednet import RoomMessage, SharedNetInvite, SharedNetSession, _decode, load_sharednet_env
 
 
@@ -133,6 +138,82 @@ class SharedNetTests(unittest.TestCase):
         next_prompt = session.request("experimenter", 1, "run experiments", None)
 
         self.assertIn("also test the low-noise subset", next_prompt)
+
+    def test_verification_is_advisory_context_for_next_agent(self):
+        invite = SharedNetInvite.parse(
+            f"ROOM=rom_advisory TOKEN=rit_{'a' * 43}",
+            room_id="rom_advisory",
+        )
+        session = SharedNetSession(
+            invite,
+            "episode-advisory",
+            ("plan", "write"),
+            client_factory=FakeRoomClient,
+        )
+        session.join()
+        session.request("plan", 0, "make a plan", "contract-0")
+        session.result("plan", 0, "plan attempted", "write")
+        session.verification(
+            0,
+            verdict="refuted",
+            reason="expected artifact did not change",
+            next_role="write",
+        )
+
+        prompt = session.request("write", 1, "write report", "contract-1")
+        self.assertIn("verification advisory (refuted)", prompt)
+        self.assertIn("expected artifact did not change", prompt)
+        typed = [_decode(message.content)[1] for message in FakeRoomClient.messages_log]
+        self.assertIn("work.verification", [item["type"] for item in typed if item])
+
+    def test_common_bridge_lifecycle_joins_roles_and_publishes_result(self):
+        class ProbeBridge(HostBridge):
+            host_id = "probe"
+
+            def __init__(self):
+                self.episode_id = "episode-probe"
+                self.hop = 1
+                self.cards = [SimpleNamespace(capability_id="plan"), SimpleNamespace(capability_id="write")]
+
+            def initialize(self, **kwargs):
+                pass
+
+            def checkpoint(self):
+                return SimpleNamespace()
+
+            def native_next(self, checkpoint):
+                return "write"
+
+            def invoke(self, capability_id, contract):
+                raise NotImplementedError
+
+        bridge = ProbeBridge()
+        bridge.configure_condition("R1")
+        invite = f"ROOM=rom_probe TOKEN=rit_{'a' * 43}"
+        with patch.dict(os.environ, {
+            "SHAREDNET_ROOM_ID": "rom_probe",
+            "SHAREDNET_INVITE": invite,
+        }, clear=False), patch(
+            "rac_ai_scientist.bridge.SharedNetSession",
+            side_effect=lambda parsed, episode, roles: SharedNetSession(
+                parsed, episode, roles, client_factory=FakeRoomClient
+            ),
+        ):
+            bridge.initialize_communication()
+
+        self.assertEqual(tuple(bridge.sharednet.members), ("plan", "write"))
+        prompt = bridge.communication_prompt("plan", "make a plan", None)
+        self.assertEqual(prompt, "make a plan")
+        result = InvocationResult("plan", "plan ready", [], [])
+        bridge.publish_invocation(result)
+        self.assertEqual(result.proposed_next, "write")
+        bridge.accept_invocation(result, SimpleNamespace(reason="verified"))
+        event_types = [
+            envelope["type"]
+            for message in FakeRoomClient.messages_log
+            if (envelope := _decode(message.content)[1]) is not None
+        ]
+        self.assertEqual(event_types, ["work.request", "work.result", "work.accepted"])
 
 
 if __name__ == "__main__":

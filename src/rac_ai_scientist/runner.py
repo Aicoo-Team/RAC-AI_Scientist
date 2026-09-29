@@ -43,7 +43,9 @@ class EpisodeRunner:
                 issue.attempts = max(issue.attempts, self._issue_sightings[key] - 1)
             self.ledger.append({"type": "checkpoint", "condition": self.condition.name, "payload": checkpoint})
 
-            if pending is None or pending.action in {Action.REROUTE, Action.REVERIFY}:
+            if checkpoint.terminal or checkpoint.remaining_budget.exhausted():
+                decision = self.policy.decide(checkpoint)
+            elif pending is None or pending.action in {Action.REROUTE, Action.REVERIFY}:
                 native = self.bridge.native_next(checkpoint) if not self.condition.enables("runtime_routing") else None
                 decision = self.policy.decide(checkpoint, native_next=native)
             elif pending.action is Action.RETRY:
@@ -62,12 +64,16 @@ class EpisodeRunner:
             transaction = WorkspaceTransaction(self.bridge.transaction_workspace())
             try:
                 result = self.bridge.invoke(decision.capability_id, decision.contract)
+                self.bridge.publish_invocation(result)
                 self.ledger.append({"type": "invocation", "hop": invocations, "payload": result})
                 pending = self.policy.evaluate(checkpoint, decision, result)
                 self.ledger.append({"type": "evaluation", "hop": invocations, "payload": pending})
                 invocations += 1
 
-                if pending.action in {Action.RETRY, Action.REROUTE}:
+                if pending.action in {Action.RETRY, Action.REROUTE, Action.ESCALATE}:
+                    # A verifier rejection returns the workspace to the state
+                    # immediately before this capability and RETRY executes the
+                    # same contracted capability again on the next loop.
                     transaction.rollback()
                     self.bridge.reject_invocation(result, pending)
                 elif pending.action is Action.RECOVER:
@@ -76,11 +82,18 @@ class EpisodeRunner:
                     self.bridge.reject_invocation(result, pending)
                     pending = None
                 elif result.error or result.timed_out:
-                    transaction.rollback()
-                    if result.timed_out and pending.action is Action.REVERIFY:
-                        self.bridge.fail_invocation(result, pending)
+                    if pending.verification is not None:
+                        # R3 verification is advisory, including a refuted
+                        # result caused by a non-terminal invocation error or
+                        # timeout.  Preserve artifacts/state and expose the
+                        # verdict to the next selected capability.
+                        self.bridge.accept_invocation(result, pending)
                     else:
-                        self.bridge.reject_invocation(result, pending)
+                        transaction.rollback()
+                        if result.timed_out and pending.action is Action.REVERIFY:
+                            self.bridge.fail_invocation(result, pending)
+                        else:
+                            self.bridge.reject_invocation(result, pending)
                 else:
                     self.bridge.accept_invocation(result, pending)
             except Exception:
@@ -89,6 +102,8 @@ class EpisodeRunner:
             finally:
                 transaction.close()
 
+            if pending is not None and pending.action is Action.ESCALATE:
+                return EpisodeOutcome("escalate", invocations, pending.reason)
             if pending is not None and pending.action is Action.STOP:
                 if result.error and "Error code: 402" in result.error:
                     return EpisodeOutcome("budget_exhausted", invocations, pending.reason)

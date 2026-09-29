@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import ast
+import hashlib
 import json
+import math
 import os
+import re
 import shutil
 import sys
 import time
+import uuid
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -15,6 +20,7 @@ from ..issues import extract_review_issues, parse_review_score
 from ..manifest import capability_cards, load_host_manifest
 from ..reproducibility import seed_runtime
 from ..schemas import Budget, Checkpoint, InvocationResult, Issue, NativeRunResult, Usage, WorkContract
+from .ark import render_contract_prompt
 
 
 ORDER = ("scope", "literature", "synthesis", "design", "experiment", "analysis", "writing", "finalize")
@@ -29,6 +35,40 @@ REQUIRED_TAGS = {
     "experiment": ("experiment", "code"), "analysis": ("analysis",),
     "writing": ("writing", "terminal_review"), "finalize": ("finalize",),
 }
+
+
+def _benchmark_execution_topic(workspace: Path, objective: str) -> str:
+    details: list[str] = []
+    task_info = workspace / "task_info.json"
+    try:
+        payload = json.loads(task_info.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        payload = {}
+    for item in payload.get("data", []) if isinstance(payload, dict) else []:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path") or (f"data/{item['name']}" if item.get("name") else None)
+        if path:
+            details.append(f"- {path}: {item.get('description', 'supplied benchmark input')}")
+    inputs = "\n".join(details) or "- Inspect the supplied data/ directory before designing the experiment."
+    return (
+        f"{objective.strip()}\n\n"
+        "BENCHMARK EXECUTION CONTRACT (mandatory):\n"
+        "Use only the files already present in this workspace; do not acquire or substitute an external dataset.\n"
+        "Base every numerical claim on measurements from the supplied inputs.\n"
+        "Persist executable code under code/, measured outputs under outputs/, and the final report at report/report.md.\n"
+        "Available benchmark inputs:\n"
+        f"{inputs}"
+    )
+
+
+def _raw_python_codegen_fallback(text: str) -> dict[str, str]:
+    candidate = text.strip()
+    try:
+        ast.parse(candidate)
+    except (SyntaxError, ValueError, TypeError):
+        return {}
+    return {"main.py": candidate} if candidate else {}
 
 
 class AutoResearchClawBridge(HostBridge):
@@ -53,6 +93,8 @@ class AutoResearchClawBridge(HostBridge):
         self.terminal = False
         self.usage = Usage()
         self.open_issues: list[Issue] = []
+        self.rollback_stage: int | None = None
+        self.decision_attempts = 0
 
     def initialize(self, *, episode_id: str, workspace: Path, objective: str, seed: int) -> None:
         if not (self.upstream / "researchclaw" / "pipeline" / "runner.py").is_file():
@@ -71,9 +113,10 @@ class AutoResearchClawBridge(HostBridge):
         from researchclaw.config import RCConfig
 
         base_url = os.environ.get("AGENT_API_BASE", "https://api.openai.com/v1")
+        execution_topic = _benchmark_execution_topic(self.workspace, objective)
         data = {
             "project": {"name": episode_id, "mode": "full-auto"},
-            "research": {"topic": objective, "quality_threshold": 0},
+            "research": {"topic": execution_topic, "quality_threshold": 0},
             "runtime": {"timezone": "UTC", "max_parallel_tasks": 1, "retry_limit": 0},
             "notifications": {"channel": "none", "on_stage_start": False, "on_stage_fail": False, "on_gate_required": False},
             "knowledge_base": {"backend": "markdown", "root": str(self.run_dir / "kb")},
@@ -91,7 +134,9 @@ class AutoResearchClawBridge(HostBridge):
         }
         self.config = RCConfig.from_dict(data, project_root=self.workspace, check_paths=False)
         self.adapters = AdapterBundle.from_config(self.config)
+        self._install_codegen_parser_adapter()
         self._install_usage_adapter()
+        self._install_experiment_adapter()
 
     def initialize_native(self, *, episode_id: str, workspace: Path, objective: str, seed: int) -> None:
         self.initialize(episode_id=episode_id, workspace=workspace, objective=objective, seed=seed)
@@ -114,11 +159,21 @@ class AutoResearchClawBridge(HostBridge):
         self._normalize_products()
         report = self.workspace / "report" / "report.md"
         stages_done = sum(1 for result in results if getattr(result.status, "value", result.status) == "done")
-        complete = bool(results) and stages_done == len(results) and report.is_file()
+        failed = next((result for result in results if getattr(result.status, "value", result.status) != "done"), None)
+        complete = bool(results) and failed is None and report.is_file()
+        if complete:
+            reason = "AutoResearchClaw native full-auto pipeline completed"
+        elif failed is not None:
+            stage = getattr(getattr(failed, "stage", None), "name", getattr(failed, "stage", "unknown"))
+            status = getattr(failed.status, "value", failed.status)
+            detail = f": {failed.error}" if getattr(failed, "error", None) else ""
+            reason = f"AutoResearchClaw native stage {stage} {status}{detail}"
+        else:
+            reason = "AutoResearchClaw native pipeline returned without report/report.md"
         self.terminal = True
         return NativeRunResult(
-            status="completed" if complete else "stop",
-            reason="AutoResearchClaw native full-auto pipeline completed" if complete else "AutoResearchClaw native pipeline stopped before completion",
+            status="completed" if complete else "failed",
+            reason=reason,
             native_iterations=len(results),
             artifacts_before=before,
             artifacts_after=snapshot_workspace(self.workspace),
@@ -131,7 +186,7 @@ class AutoResearchClawBridge(HostBridge):
                 cost_source=self.usage.cost_source,
                 token_source=self.usage.token_source,
             ),
-            native_status="completed" if complete else "stopped",
+            native_status="completed" if complete else "failed",
             metrics={"stages_done": float(stages_done), "stages_returned": float(len(results))},
         )
 
@@ -163,10 +218,23 @@ class AutoResearchClawBridge(HostBridge):
         started, output, error = time.monotonic(), "", None
         proposed_done = False
         metrics: dict[str, float] = {}
+        original_config = self.config
         try:
             from researchclaw.pipeline.executor import execute_stage
             from researchclaw.pipeline.stages import Stage, StageStatus
+            if getattr(self, "sharednet", None) is not None:
+                coordination_prompt = render_contract_prompt(self.objective, capability_id, contract)
+                coordination_prompt = self.communication_prompt(capability_id, coordination_prompt, contract)
+                self.config = replace(
+                    self.config,
+                    research=replace(
+                        self.config.research,
+                        topic=f"{self.config.research.topic}\n\n{coordination_prompt}",
+                    ),
+                )
             first, last = STAGE_RANGES[capability_id]
+            if self.rollback_stage is not None and first <= self.rollback_stage <= last:
+                first = self.rollback_stage
             results = []
             for stage_number in range(first, last + 1):
                 result = execute_stage(Stage(stage_number), run_dir=self.run_dir,
@@ -178,9 +246,40 @@ class AutoResearchClawBridge(HostBridge):
                     error = f"native stage {result.stage.name} {result.status.value}{detail}"
                     break
             output = "\n".join(f"{r.stage.name}: {r.status.value}{': ' + r.error if r.error else ''}" for r in results)
+            self._normalize_products()
             if results and all(r.status.value == "done" for r in results):
                 self.completed.add(capability_id)
-            self._normalize_products()
+                if self.rollback_stage is not None and first <= self.rollback_stage <= last:
+                    self.rollback_stage = None
+                    self.open_issues = []
+                if capability_id == "analysis":
+                    from researchclaw.pipeline.stages import DECISION_ROLLBACK, MAX_DECISION_PIVOTS
+                    decision = results[-1].decision
+                    if decision in DECISION_ROLLBACK:
+                        from researchclaw.pipeline.runner import (
+                            _consecutive_empty_metrics, _promote_best_stage14,
+                            _record_decision_history, _version_rollback_stages,
+                        )
+                        target = DECISION_ROLLBACK[decision]
+                        target_id = next(name for name, (start, end) in STAGE_RANGES.items() if start <= int(target) <= end)
+                        if self.decision_attempts >= MAX_DECISION_PIVOTS or (
+                            self.decision_attempts > 0 and _consecutive_empty_metrics(self.run_dir, self.decision_attempts)
+                        ):
+                            _promote_best_stage14(self.run_dir, self.config)
+                            self._normalize_products()
+                            self.open_issues = []
+                            output += f"\nNative {decision} limit reached: proceeding under the native bounded rollback policy"
+                        else:
+                            self.completed.difference_update(ORDER[ORDER.index(target_id):])
+                            self.open_issues = [Issue(f"native:{target_id}", "native_requirement",
+                                f"Native research decision requires {decision}: return to {target.name}",
+                                required_tags=REQUIRED_TAGS[target_id])]
+                            self.decision_attempts += 1
+                            _record_decision_history(self.run_dir, decision, target, self.decision_attempts)
+                            _version_rollback_stages(self.run_dir, target, self.decision_attempts)
+                            self.rollback_stage = int(target)
+                    else:
+                        self.open_issues = []
             if capability_id in {"writing", "finalize"}:
                 review = self._review_text()
                 self.open_issues = extract_review_issues(review)
@@ -194,6 +293,8 @@ class AutoResearchClawBridge(HostBridge):
                     self.terminal = True
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
+        finally:
+            self.config = original_config
         self.hop += 1
         after = snapshot_workspace(self.workspace)
         return InvocationResult(capability_id, output, before, after, Usage(
@@ -215,8 +316,16 @@ class AutoResearchClawBridge(HostBridge):
             if time.monotonic() - bridge.started >= bridge.initial_budget.wall_seconds:
                 raise TimeoutError("lifecycle wall-time budget exhausted")
             kwargs["model"] = bridge.model
-            kwargs["max_tokens"] = min(int(kwargs.get("max_tokens") or bridge.initial_budget.output_tokens),
-                                        max(1, bridge.initial_budget.output_tokens - bridge.usage.output_tokens))
+            requested = int(kwargs.get("max_tokens") or bridge.initial_budget.output_tokens)
+            # Upstream uses 8192 for code generation.  In practice that often
+            # truncates a multi-file program, so give code/regen calls a safe
+            # floor while leaving short review calls unchanged.
+            if requested >= 8192:
+                requested = max(requested, 16384)
+            kwargs["max_tokens"] = min(
+                requested,
+                max(1, bridge.initial_budget.output_tokens - bridge.usage.output_tokens),
+            )
             response = original(client, messages, **kwargs)
             raw = response.raw if isinstance(response.raw, dict) else {}
             cost = raw.get("response_cost", raw.get("provider_cost"))
@@ -230,6 +339,363 @@ class AutoResearchClawBridge(HostBridge):
             return response
         chat._rac_wrapped = True
         LLMClient.chat = chat
+
+    def _install_codegen_parser_adapter(self) -> None:
+        """Accept a complete raw Python response when upstream omitted fences."""
+        from researchclaw.pipeline import _helpers
+        from researchclaw.pipeline.stage_impls import _code_generation
+
+        original = _code_generation._extract_multi_file_blocks
+        if getattr(original, "_rac_wrapped", False):
+            return
+
+        def parse(text: str):
+            parsed = original(text)
+            return parsed or _raw_python_codegen_fallback(text)
+
+        parse._rac_wrapped = True
+        _helpers._extract_multi_file_blocks = parse
+        _code_generation._extract_multi_file_blocks = parse
+
+    def _install_experiment_adapter(self) -> None:
+        """Make benchmark data authoritative in experiment sandboxes.
+
+        AutoResearchClaw copies generated projects into nested sandboxes before
+        running them.  Benchmark ``workspace/data`` is outside those projects,
+        so generated code otherwise sees a missing relative path and may invent
+        synthetic data.  Stage the supplied data into each source project only
+        for the duration of experiment stages; the sandbox copy keeps it, while
+        generated source products are restored afterwards.
+
+        The upstream stage-12 implementation can also return DONE when a failed
+        process happened to print a partial metrics object.  Validate the run
+        receipt independently so paper writing cannot consume failed or
+        synthetic measurements.
+        """
+        from researchclaw.experiment.sandbox import ExperimentSandbox
+        from researchclaw.pipeline import executor, runner
+
+        try:
+            self._install_experiment_design_prompt_adapter()
+        except ModuleNotFoundError:
+            # Lightweight unit doubles may expose executor/runner without the
+            # concrete stage implementation module.
+            pass
+
+        original_run_project = ExperimentSandbox.run_project
+        if not getattr(original_run_project, "_rac_data_wrapped", False):
+            data_bridge = self
+
+            def run_project(sandbox, project_dir, *args, **kwargs):
+                staged = data_bridge._stage_data_into_projects([Path(project_dir)])
+                try:
+                    return original_run_project(sandbox, project_dir, *args, **kwargs)
+                finally:
+                    data_bridge._restore_staged_data(staged)
+
+            run_project._rac_data_wrapped = True
+            ExperimentSandbox.run_project = run_project
+
+        original = executor.execute_stage
+        if getattr(original, "_rac_experiment_wrapped", False):
+            runner.execute_stage = original
+            return
+        bridge = self
+
+        def execute(stage, *args, **kwargs):
+            number = bridge._stage_number(stage)
+            if number not in {9, 12, 13}:
+                return original(stage, *args, **kwargs)
+            before = bridge._experiment_run_signatures() if number == 12 else {}
+            result = original(stage, *args, **kwargs)
+            if number == 9 and bridge._is_experiment_schema_deficient(result):
+                # The prompt adapter has already attempted one strict-YAML
+                # regeneration.  If that still failed, perform one bounded
+                # native rollback to hypothesis generation before retrying the
+                # experiment design gate.  Calls use ``original`` directly so
+                # this wrapper cannot recurse indefinitely.
+                from researchclaw.pipeline.stages import Stage
+
+                regenerated = original(Stage(8), *args, **kwargs)
+                if str(getattr(getattr(regenerated, "status", None), "value", getattr(regenerated, "status", ""))) == "done":
+                    result = original(stage, *args, **kwargs)
+            if number == 12:
+                return bridge._validate_experiment_run(result, before)
+            return result
+
+        execute._rac_experiment_wrapped = True
+        executor.execute_stage = execute
+        # runner imports execute_stage at module load time, so native N0 needs
+        # its module-global reference replaced as well.
+        runner.execute_stage = execute
+
+    @staticmethod
+    def _stage_number(stage: Any) -> int | None:
+        value = getattr(stage, "value", stage)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            name = str(getattr(stage, "name", value)).upper()
+            return {
+                "HYPOTHESIS_GEN": 8,
+                "EXPERIMENT_DESIGN": 9,
+                "EXPERIMENT_RUN": 12,
+                "ITERATIVE_REFINE": 13,
+            }.get(name)
+
+    def _install_experiment_design_prompt_adapter(self) -> None:
+        """Normalize and retry schema-deficient Stage-9 model responses."""
+        from researchclaw.pipeline.stage_impls import _experiment_design
+
+        original = _experiment_design._chat_with_prompt
+        if getattr(original, "_rac_schema_wrapped", False):
+            return
+
+        bridge = self
+
+        def chat_with_prompt(llm, system, user, **kwargs):
+            response = original(llm, system, user, **kwargs)
+            normalized, complete = bridge._normalize_experiment_plan_content(response.content)
+            if complete:
+                return bridge._response_with_content(response, normalized)
+
+            strict_user = (
+                "Output ONLY valid YAML with these TOP-LEVEL keys: objectives, datasets, "
+                "baselines, proposed_methods, ablations, metrics, risks, compute_budget. "
+                "Do not wrap them in research_plan or any other parent key. Each of "
+                "baselines, proposed_methods, and ablations must be a non-empty list.\n\n"
+                "Original experiment-design request:\n" + user
+            )
+            retry = original(
+                llm,
+                "You output only a flat YAML mapping with the requested top-level keys.",
+                strict_user,
+                **kwargs,
+            )
+            normalized, _ = bridge._normalize_experiment_plan_content(retry.content)
+            return bridge._response_with_content(retry, normalized)
+
+        chat_with_prompt._rac_schema_wrapped = True
+        _experiment_design._chat_with_prompt = chat_with_prompt
+
+    @staticmethod
+    def _normalize_experiment_plan_content(content: str) -> tuple[str, bool]:
+        """Return flat YAML and whether it contains experiment conditions."""
+        text = content.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if lines and lines[0].lstrip().startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            nested = parsed.get("research_plan")
+            if isinstance(nested, dict):
+                outer = {key: value for key, value in parsed.items() if key != "research_plan"}
+                parsed = {**outer, **nested}
+            text = json.dumps(parsed, indent=2, ensure_ascii=False)
+            required = ("baselines", "proposed_methods", "ablations")
+            return text, all(bool(parsed.get(key)) for key in required)
+        else:
+            lines = text.splitlines()
+            first = next((index for index, line in enumerate(lines) if line.strip()), None)
+            if first is not None and re.match(r"^research_plan\s*:\s*$", lines[first].strip()):
+                nested_lines = lines[first + 1:]
+                indents = [len(line) - len(line.lstrip()) for line in nested_lines if line.strip()]
+                if indents:
+                    indent = min(indents)
+                    text = "\n".join(
+                        line[indent:] if line.strip() else line
+                        for line in nested_lines
+                    ).strip()
+        required = ("baselines", "proposed_methods", "ablations")
+        complete = all(AutoResearchClawBridge._yaml_field_has_content(text, key) for key in required)
+        return text, complete
+
+    @staticmethod
+    def _yaml_field_has_content(text: str, key: str) -> bool:
+        lines = text.splitlines()
+        pattern = re.compile(rf"^{re.escape(key)}\s*:\s*(.*)$")
+        for index, line in enumerate(lines):
+            match = pattern.match(line)
+            if match is None:
+                continue
+            inline = match.group(1).strip()
+            if inline and inline.lower() not in {"[]", "{}", "null", "none", "~"}:
+                return True
+            for following in lines[index + 1:]:
+                if following and not following[0].isspace():
+                    break
+                stripped = following.strip()
+                if stripped.startswith("-") and stripped.removeprefix("-").strip():
+                    return True
+            return False
+        return False
+
+    @staticmethod
+    def _response_with_content(response: Any, content: str) -> Any:
+        try:
+            return replace(response, content=content)
+        except (TypeError, ValueError):
+            try:
+                response.content = content
+            except (AttributeError, TypeError):
+                pass
+            return response
+
+    @staticmethod
+    def _is_experiment_schema_deficient(result: Any) -> bool:
+        decision = str(getattr(result, "decision", "")).lower()
+        error = str(getattr(result, "error", "")).lower()
+        return decision == "schema_deficient" or (
+            "missing baselines/proposed_methods/ablations" in error
+        )
+
+    def _stage_data_into_projects(self, projects: list[Path]) -> list[tuple[Path, Path | None]]:
+        assert self.workspace is not None
+        source = self.workspace / "data"
+        if not source.is_dir() or not any(path.is_file() for path in source.rglob("*")):
+            raise RuntimeError("authoritative benchmark workspace/data is missing or empty")
+        staged: list[tuple[Path, Path | None]] = []
+        for project in projects:
+            destination = project / "data"
+            backup = None
+            if destination.exists():
+                backup = project / f".rac-original-data-{uuid.uuid4().hex}"
+                destination.rename(backup)
+            try:
+                shutil.copytree(source, destination)
+            except Exception:
+                if destination.is_dir():
+                    shutil.rmtree(destination)
+                elif destination.exists():
+                    destination.unlink()
+                if backup is not None and backup.exists():
+                    backup.rename(destination)
+                raise
+            staged.append((destination, backup))
+        if not staged:
+            raise RuntimeError("no generated experiment project was available for benchmark data staging")
+        return staged
+
+    @staticmethod
+    def _restore_staged_data(staged: list[tuple[Path, Path | None]]) -> None:
+        for destination, backup in reversed(staged):
+            if destination.is_dir():
+                shutil.rmtree(destination)
+            elif destination.exists():
+                destination.unlink()
+            if backup is not None and backup.exists():
+                backup.rename(destination)
+
+    def _experiment_run_signatures(self) -> dict[Path, tuple[int, int]]:
+        assert self.run_dir is not None
+        signatures: dict[Path, tuple[int, int]] = {}
+        for path in self.run_dir.glob("stage-12*/runs/run-*.json"):
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            signatures[path] = (stat.st_mtime_ns, stat.st_size)
+        return signatures
+
+    @staticmethod
+    def _file_digest(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def _sandbox_has_authoritative_data(self, receipt: Path) -> bool:
+        assert self.workspace is not None
+        source = self.workspace / "data"
+        source_files = [path for path in source.rglob("*") if path.is_file()]
+        if not source_files:
+            return False
+        sandboxes = sorted(
+            (path / "data" for path in (receipt.parent / "sandbox").glob("_project*")),
+            key=lambda path: path.stat().st_mtime_ns if path.exists() else 0,
+            reverse=True,
+        )
+        for sandbox in sandboxes:
+            if sandbox.is_dir() and all(
+                (sandbox / path.relative_to(source)).is_file()
+                and self._file_digest(path) == self._file_digest(sandbox / path.relative_to(source))
+                for path in source_files
+            ):
+                return True
+        return False
+
+    def _validate_experiment_run(self, result: Any, before: dict[Path, tuple[int, int]]) -> Any:
+        assert self.run_dir is not None
+        candidates = []
+        for path in self.run_dir.glob("stage-12*/runs/run-*.json"):
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            signature = (stat.st_mtime_ns, stat.st_size)
+            if before.get(path) != signature:
+                candidates.append(path)
+        if not candidates:
+            candidates = list(self.run_dir.glob("stage-12*/runs/run-*.json"))
+        if not candidates:
+            return self._failed_stage_result(result, "experiment produced no run receipt")
+        receipt = max(candidates, key=lambda path: path.stat().st_mtime_ns)
+        try:
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            return self._failed_stage_result(result, f"invalid experiment run receipt: {exc}", receipt.parent.parent)
+        status = str(payload.get("status", "")).lower()
+        if status not in {"done", "completed", "success", "succeeded"}:
+            return self._failed_stage_result(result, f"experiment process status is {status or 'missing'}", receipt.parent.parent)
+        if payload.get("timed_out"):
+            return self._failed_stage_result(result, "experiment process timed out", receipt.parent.parent)
+        metrics = payload.get("metrics")
+        real_metrics = [] if not isinstance(metrics, dict) else [
+            value for value in metrics.values()
+            if isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(float(value))
+        ]
+        if not real_metrics:
+            return self._failed_stage_result(result, "experiment produced no real metrics", receipt.parent.parent)
+        transcript = f"{payload.get('stdout', '')}\n{payload.get('stderr', '')}".lower()
+        synthetic_markers = ("generating synthetic data", "generate synthetic data", "synthetic fallback")
+        if any(marker in transcript for marker in synthetic_markers):
+            return self._failed_stage_result(result, "experiment used synthetic fallback data", receipt.parent.parent)
+        if not self._sandbox_has_authoritative_data(receipt):
+            return self._failed_stage_result(result, "experiment sandbox did not preserve authoritative benchmark data", receipt.parent.parent)
+        return result
+
+    @staticmethod
+    def _failed_stage_result(result: Any, reason: str, stage_dir: Path | None = None) -> Any:
+        from researchclaw.pipeline.stages import StageStatus
+
+        try:
+            failed = replace(result, status=StageStatus.FAILED, error=reason)
+        except TypeError:
+            result.status = StageStatus.FAILED
+            result.error = reason
+            failed = result
+        if stage_dir is not None:
+            for name in ("decision.json", "stage_health.json"):
+                path = stage_dir / name
+                try:
+                    payload = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+                    payload.update({"status": "failed", "error": reason})
+                    if name == "decision.json":
+                        payload.update({"decision": "retry", "next_stage": 12})
+                    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    pass
+        return failed
 
     def _normalize_products(self) -> None:
         assert self.workspace is not None and self.run_dir is not None
@@ -290,7 +756,9 @@ class AutoResearchClawBridge(HostBridge):
 
     def _available_cards(self):
         idx = ORDER.index(self._next_native()) if not self.terminal else len(ORDER)
-        return [replace(c, available=ORDER.index(c.capability_id) <= min(idx + 1, len(ORDER) - 1)) for c in self.cards]
+        return [replace(c, available=ORDER.index(c.capability_id) <= min(idx + (self.rollback_stage is None), len(ORDER) - 1)
+                        and (c.capability_id not in {"writing", "finalize"} or "analysis" in self.completed))
+                for c in self.cards]
 
     def _next_native(self) -> str:
         return next((item for item in ORDER if item not in self.completed), "finalize")

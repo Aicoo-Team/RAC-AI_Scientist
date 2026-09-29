@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from rac_ai_scientist.cli import _execute_episode, _uses_host_native_n0
+from rac_ai_scientist.cli import _execute_episode, _uses_host_native_n0, _uses_sharednet
 from rac_ai_scientist.hosts.ark import (
     NATIVE_DEV_ITERATIONS,
     NATIVE_REVIEW_ITERATIONS,
@@ -77,6 +77,23 @@ class NativeOnlyBridge:
 
 
 class ArkNativeN0Tests(unittest.TestCase):
+    def test_native_terminal_error_is_not_reported_as_a_review_limit(self):
+        for error_field in ("_terminal_error", "_run_fatal"):
+            with self.subTest(field=error_field), tempfile.TemporaryDirectory() as raw:
+                bridge = object.__new__(ArkBridge)
+                bridge.workspace = Path(raw)
+                bridge.native_mode = True
+                bridge.orchestrator = types.SimpleNamespace(
+                    run=lambda: None, _terminal_error=None, _run_fatal=None,
+                    _agent_stats=[], iteration=NATIVE_REVIEW_ITERATIONS,
+                    load_paper_state=lambda: {"status": "in_progress", "current_score": 0})
+                setattr(bridge.orchestrator, error_field, "APIError: provider stopped the run")
+                with patch.object(bridge, "_normalize_report") as normalize:
+                    result = bridge.run_native()
+                self.assertEqual(result.status, "failed")
+                self.assertIn("APIError", result.reason)
+                normalize.assert_not_called()
+
     def test_every_ark_capability_has_an_explicit_successor(self):
         manifest = Path(__file__).resolve().parents[1] / "configs" / "hosts" / "ark.json"
         capability_ids = {
@@ -88,13 +105,20 @@ class ArkNativeN0Tests(unittest.TestCase):
         bridge = object.__new__(ArkBridge)
         self.assertEqual(bridge._successor("coder"), "writer")
 
-    def test_all_n0_conditions_select_host_native_execution(self):
-        for host in (
-            "ark", "agent_laboratory", "data_to_paper", "ai_researcher",
-            "evo_scientist", "auto_research_claw",
-        ):
+    def test_all_active_n0_conditions_select_host_native_execution(self):
+        for host in ("ark", "agent_laboratory", "evo_scientist"):
             self.assertTrue(_uses_host_native_n0(host, "N0"))
             self.assertFalse(_uses_host_native_n0(host, "R1"))
+
+    def test_all_active_hosts_use_sharednet_only_for_r1_through_r3(self):
+        active = ("ark", "agent_laboratory", "evo_scientist")
+        for host in active:
+            self.assertFalse(_uses_sharednet(host, "N0"))
+            for condition in ("R1", "R2", "R3"):
+                self.assertTrue(_uses_sharednet(host, condition))
+        for retired in ("data_to_paper", "ai_researcher", "auto_research_claw"):
+            for condition in ("N0", "R1", "R2", "R3"):
+                self.assertFalse(_uses_sharednet(retired, condition))
 
     def test_every_host_implements_its_own_native_entrypoint(self):
         for bridge_type in (
