@@ -452,46 +452,6 @@ class ArkBridge(HostBridge):
         self._pending_transition = None
         self._publish_disposition(False, evaluation.reason, next_capability)
 
-    def fail_invocation(self, result: InvocationResult, evaluation: CoordinationDecision) -> None:
-        """Mirror native ARK: mark an empty timed-out step failed and continue."""
-        if not result.timed_out or self.condition is not Condition.R1:
-            self.reject_invocation(result, evaluation)
-            return
-
-        next_capability = self._successor(result.capability_id)
-        failure = {
-            "hop": self.hop - 1,
-            "capability_id": result.capability_id,
-            "status": "failed",
-            "reason": "capability timed out",
-            "next_capability_id": next_capability,
-        }
-        self.failed_invocations.append(failure)
-        assert self.workspace is not None
-        failure_path = self.workspace / "state" / "ark" / "failures.jsonl"
-        failure_path.parent.mkdir(parents=True, exist_ok=True)
-        with failure_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(failure, sort_keys=True) + "\n")
-
-        self.native_capability = next_capability
-        self.open_issues = [
-            Issue(
-                f"native:{next_capability}",
-                "native_requirement",
-                f"{next_capability} work remains after {result.capability_id} failed",
-                required_tags=REQUIRED_TAGS[next_capability],
-            )
-        ]
-        self._pending_transition = None
-        sharednet = getattr(self, "sharednet", None)
-        if sharednet is not None:
-            sharednet.disposition(
-                self.hop - 1,
-                accepted=False,
-                reason=evaluation.reason,
-                next_role=next_capability,
-            )
-
     def _successor(self, capability_id: str) -> str:
         try:
             return SUCCESSORS[capability_id]

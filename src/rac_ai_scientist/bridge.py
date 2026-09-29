@@ -156,15 +156,6 @@ class HostBridge(ABC):
         else:
             self._publish_disposition(True, evaluation.reason, next_role)
 
-    def fail_invocation(self, result: InvocationResult, evaluation: CoordinationDecision) -> None:
-        """Record a failed native step that the host workflow may continue past.
-
-        The default remains conservative for hosts that do not expose native
-        failure bookkeeping.  Such hosts discard the invocation exactly as a
-        normal rejection.
-        """
-        self.reject_invocation(result, evaluation)
-
 
 class BridgeContractError(RuntimeError):
     pass
