@@ -14,7 +14,6 @@ authors = [{name = "RAC AI Scientist contributors"}]
 keywords = ["ai-scientist", "multi-agent", "evaluation", "reproducibility"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
