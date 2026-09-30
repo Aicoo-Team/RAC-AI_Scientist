@@ -1,3 +1,4 @@
+import json
 import tempfile
 import time
 import types
@@ -7,7 +8,7 @@ from unittest.mock import patch
 
 from rac_ai_scientist.hosts.ark import ArkBridge
 from rac_ai_scientist.policy import SharedPolicy
-from rac_ai_scientist.schemas import Budget, Issue
+from rac_ai_scientist.schemas import Action, Budget, InvocationResult, Issue
 
 
 class ArkInvocationContractTests(unittest.TestCase):
@@ -20,6 +21,45 @@ class ArkInvocationContractTests(unittest.TestCase):
         bridge.episode_id = "episode"
         bridge.objective = "Analyze the supplied measurements"
         return bridge
+
+    def test_continuable_timeout_advances_real_ark_bridge_in_r1_and_r2(self):
+        for condition in ("R1", "R2"):
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bridge = self.make_bridge(root, lambda *args, **kwargs: "")
+                bridge.configure_condition(condition)
+                bridge.native_capability = "planner"
+                bridge.open_issues = [Issue(
+                    "native:planner", "native_requirement", "planning remains",
+                    required_tags=("planning",),
+                )]
+                policy = SharedPolicy(condition)
+                checkpoint = bridge.checkpoint()
+                decision = policy.decide(checkpoint, native_next=bridge.native_next(checkpoint))
+                result = InvocationResult(
+                    "planner", "", [], [], timed_out=True,
+                    metrics={"native_timeout_continuable": 1.0},
+                )
+                bridge.hop = 1
+
+                evaluation = policy.evaluate(checkpoint, decision, result)
+                self.assertEqual(evaluation.action, Action.REVERIFY)
+                bridge.fail_invocation(result, evaluation)
+
+                next_checkpoint = bridge.checkpoint()
+                next_decision = policy.decide(
+                    next_checkpoint, native_next=bridge.native_next(next_checkpoint),
+                )
+                self.assertEqual(next_decision.capability_id, "experimenter")
+                self.assertEqual(next_checkpoint.issues[0].issue_id, "native:experimenter")
+                failures = [
+                    json.loads(line)
+                    for line in (root / "state/ark/failures.jsonl").read_text().splitlines()
+                ]
+                self.assertEqual(len(failures), 1)
+                self.assertEqual(failures[0]["capability_id"], "planner")
+                self.assertEqual(failures[0]["next_capability_id"], "experimenter")
+                self.assertEqual(next_checkpoint.history, failures)
 
     def test_native_terminal_error_is_propagated_before_persisting_output(self):
         with tempfile.TemporaryDirectory() as directory:
