@@ -83,6 +83,24 @@ class BenchmarkTests(unittest.TestCase):
                             materialize_rcb_workspace(task, workspace)
                         self.assertFalse(workspace.exists())
 
+    def test_materializer_rejects_non_directory_input_roots_before_copying(self):
+        for input_name in ("data", "related_work"):
+            with self.subTest(input_name=input_name):
+                with tempfile.TemporaryDirectory() as raw:
+                    root = Path(raw)
+                    task = root / "task"
+                    task.mkdir()
+                    (task / "task_info.json").write_text(json.dumps({"task": "demo"}), encoding="utf-8")
+                    (task / input_name).write_text("not a directory", encoding="utf-8")
+                    workspace = root / "workspace"
+
+                    with self.assertRaisesRegex(
+                        BenchmarkBoundaryError,
+                        "benchmark input root is not a directory",
+                    ):
+                        materialize_rcb_workspace(task, workspace)
+                    self.assertFalse(workspace.exists())
+
     def test_materializer_uses_file_contents_over_stale_numeric_metadata(self):
         with tempfile.TemporaryDirectory() as raw:
             tmp_path = Path(raw)

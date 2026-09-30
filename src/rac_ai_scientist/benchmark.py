@@ -140,6 +140,8 @@ def _verified_data_items(task_dir: Path, raw_items: object) -> tuple[list, list[
 def _assert_safe_input_tree(source: Path, task_dir: Path) -> None:
     if source.is_symlink():
         raise BenchmarkBoundaryError(f"symbolic links are not allowed in host-visible benchmark input: {source}")
+    if not source.is_dir():
+        raise BenchmarkBoundaryError(f"benchmark input root is not a directory: {source}")
     try:
         source.resolve().relative_to(task_dir.resolve())
     except ValueError as exc:
