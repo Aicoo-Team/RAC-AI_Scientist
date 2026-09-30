@@ -15,12 +15,14 @@ class BenchmarkTests(unittest.TestCase):
             (task / "related_work").mkdir()
             (task / "target_study").mkdir()
             (task / "data" / "x.csv").write_text("x\n1\n", encoding="utf-8")
+            (task / "related_work" / "notes.txt").write_text("reference notes", encoding="utf-8")
             (task / "target_study" / "paper.pdf").write_bytes(b"secret")
             (task / ".env").write_text("SHAREDNET_INVITE=private", encoding="utf-8")
             (task / "task_info.json").write_text(json.dumps({"task": "demo", "data": []}), encoding="utf-8")
             workspace = tmp_path / "runs" / "ep"
             materialize_rcb_workspace(task, workspace)
             self.assertTrue((workspace / "data" / "x.csv").is_file())
+            self.assertEqual((workspace / "related_work" / "notes.txt").read_text(), "reference notes")
             sanitized = json.loads((workspace / "task_info.json").read_text(encoding="utf-8"))
             self.assertEqual(sanitized["task_id"], "Demo_000")
             instructions = (workspace / "INSTRUCTIONS.md").read_text(encoding="utf-8")
@@ -56,6 +58,48 @@ class BenchmarkTests(unittest.TestCase):
                 self.skipTest("symbolic links are unavailable on this platform")
             with self.assertRaises(BenchmarkBoundaryError):
                 materialize_rcb_workspace(task, tmp_path / "runs" / "ep")
+
+    def test_materializer_rejects_symlinked_input_roots_before_copying(self):
+        for input_name in ("data", "related_work"):
+            for target_state in ("populated", "empty", "missing"):
+                with self.subTest(input_name=input_name, target_state=target_state):
+                    with tempfile.TemporaryDirectory() as raw:
+                        root = Path(raw)
+                        task = root / "task"
+                        task.mkdir()
+                        (task / "task_info.json").write_text(json.dumps({"task": "demo"}), encoding="utf-8")
+                        external = root / "external-input"
+                        if target_state != "missing":
+                            external.mkdir()
+                        if target_state == "populated":
+                            (external / "sample.txt").write_text("external sample", encoding="utf-8")
+                        try:
+                            (task / input_name).symlink_to(external, target_is_directory=True)
+                        except OSError:
+                            self.skipTest("symbolic links are unavailable on this platform")
+                        workspace = root / "workspace"
+
+                        with self.assertRaises(BenchmarkBoundaryError):
+                            materialize_rcb_workspace(task, workspace)
+                        self.assertFalse(workspace.exists())
+
+    def test_materializer_rejects_non_directory_input_roots_before_copying(self):
+        for input_name in ("data", "related_work"):
+            with self.subTest(input_name=input_name):
+                with tempfile.TemporaryDirectory() as raw:
+                    root = Path(raw)
+                    task = root / "task"
+                    task.mkdir()
+                    (task / "task_info.json").write_text(json.dumps({"task": "demo"}), encoding="utf-8")
+                    (task / input_name).write_text("not a directory", encoding="utf-8")
+                    workspace = root / "workspace"
+
+                    with self.assertRaisesRegex(
+                        BenchmarkBoundaryError,
+                        "benchmark input root is not a directory",
+                    ):
+                        materialize_rcb_workspace(task, workspace)
+                    self.assertFalse(workspace.exists())
 
     def test_materializer_uses_file_contents_over_stale_numeric_metadata(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -137,7 +137,15 @@ def _verified_data_items(task_dir: Path, raw_items: object) -> tuple[list, list[
     return verified, findings
 
 
-def _assert_safe_input_tree(source: Path) -> None:
+def _assert_safe_input_tree(source: Path, task_dir: Path) -> None:
+    if source.is_symlink():
+        raise BenchmarkBoundaryError(f"symbolic links are not allowed in host-visible benchmark input: {source}")
+    if not source.is_dir():
+        raise BenchmarkBoundaryError(f"benchmark input root is not a directory: {source}")
+    try:
+        source.resolve().relative_to(task_dir.resolve())
+    except ValueError as exc:
+        raise BenchmarkBoundaryError(f"benchmark input escapes its task directory: {source}") from exc
     for path in source.rglob("*"):
         if path.is_symlink():
             raise BenchmarkBoundaryError(f"symbolic links are not allowed in host-visible benchmark input: {path}")
@@ -162,8 +170,8 @@ def materialize_rcb_workspace(task_dir: Path, destination: Path) -> dict:
     sources: list[tuple[str, Path]] = []
     for name in ("data", "related_work"):
         source = task_dir / name
-        if source.exists():
-            _assert_safe_input_tree(source)
+        if source.exists() or source.is_symlink():
+            _assert_safe_input_tree(source, task_dir)
             sources.append((name, source))
     data_items, validation_findings = _verified_data_items(task_dir, info.get("data", []))
     destination.mkdir(parents=True, exist_ok=False)
