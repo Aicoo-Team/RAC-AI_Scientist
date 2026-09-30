@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..artifacts import snapshot_workspace
+from ..budget import require_provider_budget
 from ..bridge import HostBridge
 from ..manifest import capability_cards, load_host_manifest
 from ..reproducibility import seed_runtime
@@ -903,10 +904,23 @@ class AgentLaboratoryBridge(HostBridge):
             response = None
             content = None
             for attempt in range(3):
-                if self.provider_calls >= self.initial_budget.agent_calls:
-                    raise RuntimeError("lifecycle agent-call budget exhausted")
-                if time.monotonic() - self.started >= self.initial_budget.wall_seconds:
-                    raise TimeoutError("lifecycle wall-time budget exhausted")
+                require_provider_budget(
+                    self.initial_budget,
+                    Usage(
+                        provider_cost_usd=self.provider_cost_usd,
+                        input_tokens=self.input_tokens,
+                        output_tokens=self.output_tokens,
+                        agent_calls=self.provider_calls,
+                        cost_source=(
+                            "provider_response"
+                            if self.cost_is_provider_reported
+                            else "unavailable"
+                        ),
+                        token_source="provider_response",
+                    ),
+                    elapsed_seconds=time.monotonic() - self.started,
+                    provider_cost_known=self.cost_is_provider_reported,
+                )
                 request["max_tokens"] = _request_completion_limit(
                     self.initial_budget.output_tokens - self.output_tokens
                 )

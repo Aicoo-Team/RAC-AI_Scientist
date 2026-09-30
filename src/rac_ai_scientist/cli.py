@@ -6,6 +6,8 @@ import json
 import os
 import sys
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .benchmark import assert_no_target_study, materialize_rcb_workspace
@@ -17,7 +19,7 @@ from .matrix import expand_matrix
 from .runner import EpisodeRunner
 from .sharednet import SharedNetInvite, load_sharednet_env
 from .schemas import Budget, to_jsonable
-from .provenance import tree_hash
+from .provenance import integration_provenance, runtime_provenance, score_provenance, tree_hash
 from .hosts.registry import HOST_IDS, SHAREDNET_HOST_IDS, local_snapshot_name, make_bridge
 
 
@@ -91,9 +93,56 @@ def _prepare_task(args: argparse.Namespace) -> int:
     return 0
 
 
-def _write_score_failure(score_path: Path, task_id: str | None, message: str) -> int:
+def _record_score_attempt(
+    episode_dir: Path,
+    metadata: dict,
+    result: dict,
+    *,
+    benchmark: Path,
+) -> Path:
+    attempt_id = (
+        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        + "-"
+        + uuid.uuid4().hex[:8]
+    )
+    attempts = episode_dir / "scores"
+    attempts.mkdir(exist_ok=True)
+    attempt_path = attempts / f"{attempt_id}.json"
+    provenance = score_provenance(
+        Path(__file__).resolve().parents[2],
+        benchmark,
+        episode_dir / "workspace" / "report" / "report.md",
+    )
+    record = {
+        "schema_version": 1,
+        "attempt_id": attempt_id,
+        "episode_id": metadata.get("episode_id"),
+        "task_id": metadata.get("task_id"),
+        "result": result,
+        "provenance": provenance,
+    }
+    with attempt_path.open("x", encoding="utf-8") as handle:
+        json.dump(record, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    selected = dict(result)
+    selected["score_attempt_id"] = attempt_id
+    selected["score_attempt_path"] = attempt_path.relative_to(episode_dir).as_posix()
+    selected["provenance"] = provenance
+    (episode_dir / "score.json").write_text(
+        json.dumps(selected, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return attempt_path
+
+
+def _write_score_failure(
+    episode_dir: Path,
+    metadata: dict,
+    benchmark: Path,
+    task_id: str | None,
+    message: str,
+) -> int:
     result = {"task_id": task_id, "total_score": None, "error": message}
-    score_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    _record_score_attempt(episode_dir, metadata, result, benchmark=benchmark)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 2
 
@@ -130,15 +179,16 @@ def _score_episode(args: argparse.Namespace) -> int:
     if not metadata_path.is_file():
         raise FileNotFoundError(f"missing episode metadata: {metadata_path}")
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    score_path = episode_dir / "score.json"
+    benchmark = Path(args.benchmark).resolve()
     task_id = metadata.get("task_id")
     try:
         assert_no_target_study(workspace)
         preflight_errors = _score_preflight(workspace)
         if preflight_errors:
-            return _write_score_failure(score_path, task_id, "; ".join(preflight_errors))
+            return _write_score_failure(
+                episode_dir, metadata, benchmark, task_id, "; ".join(preflight_errors)
+            )
 
-        benchmark = Path(args.benchmark).resolve()
         if not (benchmark / "evaluation" / "score.py").is_file():
             raise FileNotFoundError(f"ResearchClawBench checkout not found: {benchmark}")
         (workspace / "_meta.json").write_text(
@@ -164,11 +214,13 @@ def _score_episode(args: argparse.Namespace) -> int:
         if not isinstance(result, dict):
             raise RuntimeError("ResearchClawBench returned a non-object score result")
         assert_complete_score(result)
-        score_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+        _record_score_attempt(episode_dir, metadata, result, benchmark=benchmark)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0
     except Exception as exc:
-        return _write_score_failure(score_path, task_id, f"Scoring failed: {exc}")
+        return _write_score_failure(
+            episode_dir, metadata, benchmark, task_id, f"Scoring failed: {exc}"
+        )
 
 
 def _resolve_upstream(root: Path, host: str) -> Path:
@@ -283,7 +335,7 @@ def _run_one(args: argparse.Namespace) -> int:
     if sharednet_room_id:
         run_config["sharednet_room_id"] = sharednet_room_id
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "episode_id": episode_id,
         "task_id": task_id,
         "host": args.host,
@@ -296,6 +348,8 @@ def _run_one(args: argparse.Namespace) -> int:
         "manifest_sha256": config_hash(json.loads(manifest.read_text(encoding="utf-8"))),
         "status": "initializing",
         "execution_mode": execution_mode,
+        "integration": integration_provenance(root),
+        "runtime": runtime_provenance(model=model),
     }
     if sharednet_room_id:
         metadata["communication"] = {"backend": "sharednet", "room_id": sharednet_room_id}

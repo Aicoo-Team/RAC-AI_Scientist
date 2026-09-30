@@ -62,6 +62,17 @@ class ScorePreflightTests(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIsNone(result["total_score"])
             self.assertIn("missing or empty report", result["error"])
+            attempts = list((episode / "scores").glob("*.json"))
+            self.assertEqual(len(attempts), 1)
+            attempt = json.loads(attempts[0].read_text(encoding="utf-8"))
+            self.assertEqual(attempt["result"]["total_score"], None)
+            self.assertEqual(result["score_attempt_path"], f"scores/{attempts[0].name}")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                _score_episode(
+                    argparse.Namespace(episode_dir=str(episode), benchmark=str(Path(raw) / "missing"))
+                )
+            self.assertEqual(len(list((episode / "scores").glob("*.json"))), 2)
 
 
 if __name__ == "__main__":

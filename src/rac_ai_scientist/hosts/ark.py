@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..artifacts import snapshot_workspace
+from ..budget import require_provider_budget
 from ..bridge import HostBridge
 from ..conditions import Condition
 from ..issues import extract_review_issues, parse_review_score
@@ -173,6 +174,7 @@ class ArkBridge(HostBridge):
         self.started = time.monotonic()
         self._pending_transition = None
         self.failed_invocations = []
+        self.terminal = False
         self.open_issues = [] if native else [Issue("native:researcher", "native_requirement", "initial research framing is incomplete", required_tags=("planning",))]
 
     def run_native(self) -> NativeRunResult:
@@ -253,7 +255,7 @@ class ArkBridge(HostBridge):
             remaining,
             self.cards,
             history=list(self.failed_invocations),
-            terminal=False,
+            terminal=getattr(self, "terminal", False),
         )
 
     def native_next(self, checkpoint: Checkpoint) -> str | None:
@@ -381,6 +383,7 @@ class ArkBridge(HostBridge):
         timeout: int,
     ) -> tuple[str, bool]:
         """Retry one generated-content rejection without masking other failures."""
+        self._require_provider_budget()
         output = self.orchestrator.run_agent(capability_id, prompt, timeout=timeout)
         terminal_error = getattr(self.orchestrator, "_terminal_error", None)
         if not _is_content_filter_error(terminal_error):
@@ -393,6 +396,7 @@ class ArkBridge(HostBridge):
             "[RAC] ARK provider-filter retry with compact academic task context",
             file=sys.stderr,
         )
+        self._require_provider_budget()
         return (
             self.orchestrator.run_agent(
                 capability_id,
@@ -403,10 +407,27 @@ class ArkBridge(HostBridge):
         )
 
     def accept_invocation(self, result: InvocationResult, evaluation: CoordinationDecision) -> None:
+        if result.proposed_done:
+            # This is the host's native reviewer completion signal.  It is
+            # separate from R3's advisory RAC verification verdict.
+            self.terminal = True
+            self.open_issues = []
+            self._pending_transition = None
+            self._publish_evaluation(evaluation, None)
+            return
         if self._pending_transition is not None:
             self.native_capability, self.open_issues = self._pending_transition
             self._pending_transition = None
         self._publish_evaluation(evaluation, self.native_capability)
+
+    def _require_provider_budget(self) -> None:
+        usage = self._usage_totals()
+        require_provider_budget(
+            self.initial_budget,
+            usage,
+            elapsed_seconds=time.monotonic() - self.started,
+            provider_cost_known=usage.cost_source != "unavailable",
+        )
 
     def reject_invocation(self, result: InvocationResult, evaluation: CoordinationDecision) -> None:
         self._pending_transition = None

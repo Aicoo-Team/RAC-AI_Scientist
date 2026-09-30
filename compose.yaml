@@ -12,8 +12,11 @@ services:
       SHAREDNET_BASE_URL: ${SHAREDNET_BASE_URL:-https://www.sharednet.ai}
       SHAREDNET_INVITE: ${SHAREDNET_INVITE:-}
       SHAREDNET_ROOM_ID: ${SHAREDNET_ROOM_ID:-}
+      RAC_IMAGE_ID: ${RAC_IMAGE_ID:-}
     volumes: &run_volumes
-      - ${RUN_ROOT:-./runs}:/runs
+      # Set CELL_RUN_ROOT to a unique directory for every evaluated cell.  The
+      # fallback keeps local diagnostics usable but formal runs must override it.
+      - ${CELL_RUN_ROOT:-./runs/current-cell}:/runs
       - ${PREPARED_TASK:-./benchmark_input}:/input/task:ro
 
   agent-laboratory:
@@ -48,5 +51,6 @@ services:
       JUDGE_API_VERSION: ${JUDGE_API_VERSION:-2025-04-01-preview}
       JUDGE_MAX_COMPLETION_TOKENS: ${JUDGE_MAX_COMPLETION_TOKENS:-1000}
       JUDGE_MAX_WORKERS: ${JUDGE_MAX_WORKERS:-1}
+      SCORER_IMAGE_ID: ${SCORER_IMAGE_ID:-}
     volumes:
-      - ${RUN_ROOT:-./runs}:/runs
+      - ${CELL_RUN_ROOT:-./runs/current-cell}:/runs

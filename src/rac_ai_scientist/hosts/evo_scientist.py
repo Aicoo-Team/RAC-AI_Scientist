@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ..artifacts import snapshot_workspace
+from ..budget import require_provider_budget
 from ..bridge import HostBridge
 from ..issues import extract_review_issues, parse_review_score
 from ..manifest import capability_cards, load_host_manifest
@@ -336,6 +337,14 @@ class EvoScientistBridge(HostBridge):
                 active_prompt = prompt if attempt == 0 else retry_prompt
                 if active_prompt is None:
                     break
+                usage = getattr(self, "usage", Usage())
+                if hasattr(self, "initial_budget") and hasattr(self, "started"):
+                    require_provider_budget(
+                        self.initial_budget,
+                        usage,
+                        elapsed_seconds=time.monotonic() - self.started,
+                        provider_cost_known=usage.cost_source != "unavailable",
+                    )
                 payload: dict[str, Any] = {
                     "messages": [{"role": "user", "content": active_prompt}],
                 }
@@ -445,18 +454,19 @@ def _create_cli_agent_with_native_rubric(*, workspace_dir: str, config: Any, cha
         dangerous=config.dangerous_mode,
         guard_dangerous=config.auto_approve,
     )
-    original_builder = evo_api._get_default_middleware
-
-    def build_with_rubric(*args, **kwargs):
-        middleware = list(original_builder(*args, **kwargs))
-        middleware.append(
-            _scheduler_rubric_middleware(model=chat_model, backend=grader_backend)
-        )
-        return middleware
-
     # Graph construction is synchronous. Serialize the temporary module-level
-    # override so concurrent bridge initialization cannot observe another build.
+    # override, including reading the original, so concurrent initialization
+    # cannot capture another invocation's temporary wrapper.
     with _NATIVE_RUBRIC_BUILD_LOCK:
+        original_builder = evo_api._get_default_middleware
+
+        def build_with_rubric(*args, **kwargs):
+            middleware = list(original_builder(*args, **kwargs))
+            middleware.append(
+                _scheduler_rubric_middleware(model=chat_model, backend=grader_backend)
+            )
+            return middleware
+
         evo_api._get_default_middleware = build_with_rubric
         try:
             return evo_api.create_cli_agent(
