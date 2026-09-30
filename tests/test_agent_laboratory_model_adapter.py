@@ -78,6 +78,23 @@ class AgentLaboratoryModelAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "output-token budget exhausted"):
             _request_completion_limit(0)
 
+    def test_known_input_overage_blocks_the_next_provider_request(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bridge = self._bridge(Path(raw))
+            bridge.initial_budget = Budget(25, 1, 1_300_000, 900, 21_600, 14)
+            query_model, requests = self._install_fake_adapter(
+                bridge,
+                [self._response("first", prompt_tokens=4, completion_tokens=1)],
+            )
+            self.assertEqual(
+                query_model(model_str="ignored", prompt="task", system_prompt="role"),
+                "first",
+            )
+            with self.assertRaisesRegex(RuntimeError, "input-token budget exhausted"):
+                query_model(model_str="ignored", prompt="task", system_prompt="role")
+
+        self.assertEqual(len(requests), 1)
+
     def test_content_filter_is_recognized_and_usage_is_read_from_error(self):
         class Filtered(Exception):
             status_code = 400

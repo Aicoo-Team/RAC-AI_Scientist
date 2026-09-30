@@ -92,6 +92,9 @@ docker compose run --rm "$SERVICE" check-workspace /input/task </dev/null
 export CONDITION=R3
 export SEED=0
 export EPISODE="${HOST}-${TASK,,}-${CONDITION,,}-s${SEED}-${STAMP}"
+export CELL_RUN_ROOT="$RUN_ROOT/cells/$EPISODE"
+mkdir -p "$CELL_RUN_ROOT"
+export RAC_IMAGE_ID="$(docker compose images -q "$SERVICE")"
 
 docker compose run --rm "$SERVICE" run-one \
   --host "$HOST" \
@@ -116,17 +119,19 @@ N0 必须省略 `--sharednet-env-file`。长任务建议在 `tmux` 内运行，�
 
 ```bash
 docker compose build scorer
+export SCORER_IMAGE_ID="$(docker compose images -q scorer)"
 docker compose run --rm scorer score-episode \
   --episode-dir "/runs/$EPISODE" \
   --benchmark /opt/benchmark
 
 mkdir -p exports
 tar --exclude='*/.conda_env' -czf "exports/${EPISODE}.tar.gz" \
-  -C "$RUN_ROOT" "$EPISODE"
+  -C "$CELL_RUN_ROOT" "$EPISODE"
 ```
 
-缺失报告、judge HTTP 错误或解析失败必须表现为 `total_score: null` 和明确
-错误，不能伪装成合法的 0 分。归档需保留 episode、score、ledger、日志、
+每次评分都会在 `scores/` 下追加不可覆盖的尝试记录，`score.json` 只是指向
+最新所选尝试的兼容视图。缺失报告、judge HTTP 错误或解析失败必须表现为
+`total_score: null` 和明确错误，不能伪装成合法的 0 分。归档需保留 episode、score、所有评分尝试、ledger、日志、
 报告、代码和输出，但必须排除每个工作区的 `.conda_env/`。
 
 ## 发布前检查

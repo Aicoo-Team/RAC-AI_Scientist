@@ -1,5 +1,6 @@
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -106,6 +107,23 @@ class EvoCleanupTests(unittest.TestCase):
                     else:
                         self.assertEqual(bridge._invoke_agent('test'), {'messages': []})
                 module.aclose_code_interpreters.assert_awaited_once_with()
+
+    def test_known_usage_overage_blocks_the_next_native_request(self):
+        module = ModuleType('EvoScientist.middleware.code_interpreter')
+        module.aclose_code_interpreters = AsyncMock()
+        invoke = Mock(return_value={'messages': []})
+        bridge = object.__new__(EvoScientistBridge)
+        bridge.episode_id = 'budget-test'
+        bridge.agent = SimpleNamespace(invoke=invoke)
+        bridge.initial_budget = Budget(20, 1, 100_000, 10, 100, 10)
+        bridge.started = time.monotonic()
+        bridge.usage = Usage(input_tokens=2, token_source='provider_response')
+
+        with patch.dict(sys.modules, {'EvoScientist.middleware.code_interpreter': module}):
+            with self.assertRaisesRegex(RuntimeError, 'input-token budget exhausted'):
+                bridge._invoke_agent('must not be sent')
+
+        invoke.assert_not_called()
 
     def test_native_rubric_is_forwarded_as_top_level_graph_state(self):
         module = ModuleType('EvoScientist.middleware.code_interpreter')

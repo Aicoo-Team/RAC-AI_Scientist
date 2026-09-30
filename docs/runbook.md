@@ -142,6 +142,9 @@ budget.
 export CONDITION=R3
 export SEED=0
 export EPISODE="${HOST}-${TASK,,}-${CONDITION,,}-s${SEED}-${STAMP}"
+export CELL_RUN_ROOT="$RUN_ROOT/cells/$EPISODE"
+mkdir -p "$CELL_RUN_ROOT"
+export RAC_IMAGE_ID="$(docker compose images -q "$SERVICE")"
 
 docker compose run --rm "$SERVICE" run-one \
   --host "$HOST" \
@@ -165,8 +168,8 @@ the final episode record as well:
 
 ```bash
 docker ps --format '{{.ID}} {{.Names}} {{.Status}}'
-test -f "$RUN_ROOT/$EPISODE/episode.json" && \
-  python3 -m json.tool "$RUN_ROOT/$EPISODE/episode.json"
+test -f "$CELL_RUN_ROOT/$EPISODE/episode.json" && \
+  python3 -m json.tool "$CELL_RUN_ROOT/$EPISODE/episode.json"
 ```
 
 Every retry must use a new episode ID. Preserve failed episodes for audit unless
@@ -180,26 +183,29 @@ read benchmark target material:
 ```bash
 docker compose build scorer
 test "$?" -eq 0
+export SCORER_IMAGE_ID="$(docker compose images -q scorer)"
 
 docker compose run --rm scorer score-episode \
   --episode-dir "/runs/$EPISODE" \
   --benchmark /opt/benchmark
 ```
 
-A legitimate numeric zero differs from an incomplete score. A missing report,
+A legitimate numeric zero differs from an incomplete score. Each scoring run
+is appended under `scores/`; `score.json` is the compatibility view of the
+latest selected attempt. A missing report,
 judge HTTP error, or response-parse failure must produce `total_score: null`
 with an explicit error; it must never be silently converted to zero.
 
 ## 8. Archive reproducibility evidence
 
-Preserve the episode record, score, coordination ledger, logs, report, code, and
+Preserve the episode record, `score.json`, all `scores/` attempts, coordination ledger, logs, report, code, and
 outputs. Always exclude generated `.conda_env/` runtimes:
 
 ```bash
 mkdir -p "$REPO/exports"
 tar --exclude='*/.conda_env' \
   -czf "$REPO/exports/${EPISODE}.tar.gz" \
-  -C "$RUN_ROOT" "$EPISODE"
+  -C "$CELL_RUN_ROOT" "$EPISODE"
 ```
 
 ## Release checks
