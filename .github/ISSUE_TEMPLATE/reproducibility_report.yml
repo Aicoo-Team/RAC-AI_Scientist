@@ -1,0 +1,42 @@
+name: Reproducibility report
+description: Report an experiment, accounting, provenance, or scoring discrepancy.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow docs/research-reporting.md. Report missing evidence explicitly; the software may not capture every requested field. This is a public form. Do not include keys, private endpoints, SharedNet invites, benchmark answers, or private task data. Read SECURITY.md for sensitive findings.
+  - type: textarea
+    id: discrepancy
+    attributes:
+      label: Observed discrepancy and expected result
+      description: Describe the claim or behavior being checked and the evidence that differs. Separate an observed failure from a hypothesis about its cause.
+    validations:
+      required: true
+  - type: textarea
+    id: revisions
+    attributes:
+      label: Source and environment records
+      description: Give integration/host/benchmark commits, local modifications, image ID/digest, platform, resolved dependencies, and model settings. Mark unavailable records as unknown.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Experiment design and attempts
+      description: List task IDs, hosts, conditions, seeds, configured budgets, observed usage, planned cells, all relevant attempts/retries, terminal states, and exclusions. Use episode IDs without including benchmark answers.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproduction and redacted evidence
+      description: Provide minimal commands and artifact/report hashes. For scoring, include judge configuration, scoring attempts, and whether the score is valid, missing, or failed. State any unavailable evidence.
+    validations:
+      required: true
+  - type: checkboxes
+    id: review
+    attributes:
+      label: Before submitting
+      options:
+        - label: I reviewed this public report and attachments for sensitive information and benchmark answers.
+          required: true

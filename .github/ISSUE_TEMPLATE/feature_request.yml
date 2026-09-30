@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a scoped improvement and explain its effect on existing experiments.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Do not include private configuration or benchmark answers. New hosts and changes to condition semantics should explain their maintenance and reproducibility impact.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Explain the concrete limitation and who encounters it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and alternatives
+      description: Describe the expected result, scope, and any alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Experimental and maintenance impact
+      description: Describe affected hosts/conditions, compatibility, tests, dependencies, budgets, prompts, preprocessing, or scoring. State unknowns; do not claim an unmeasured improvement.

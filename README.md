@@ -64,6 +64,10 @@ runs/                     ignored generated episodes and ledgers
 
 ## Safe offline quickstart
 
+Use Python 3.10 or newer from the repository root. Dependency installation may
+access a package index; the checks below make no model calls. For contributor
+setup and the test map, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate
@@ -78,7 +82,11 @@ environments, credentials, task selection, and budget fields are explicitly
 configured.
 
 To materialize resolved upstream revisions, run `python scripts/bootstrap.py`.
-All required host and benchmark dependencies are revision-pinned. The optional
+The required host and benchmark source repositories are revision-pinned. These
+source pins do not freeze container base images, resolved Python/system
+dependencies, or downloaded model resources. Preserve runtime environment
+records separately for formal comparisons; see the
+[research reporting checklist](docs/research-reporting.md). The optional
 RAC design-source entry has no public frozen revision and is skipped by default;
 the runnable N0–R3 implementation is self-contained in this repository.
 `--allow-floating` remains an explicit, non-reproducible development escape
@@ -332,8 +340,11 @@ Keep failed attempts for audit and always use a new episode ID for a retry.
 
 - The evaluated host never receives `tasks/<id>/target_study`; only the external
   ResearchClawBench scorer may read it.
-- Every episode records the host and RAC source revisions, configuration hash,
-  task, seed, condition, budget, usage, terminal status, and artifact hashes.
+- Every reported episode must be accompanied by the integration, host, and
+  benchmark source revisions, environment records, configuration, task, seed,
+  condition, budget, usage, terminal status, and artifact hashes. Check the
+  produced records and supply missing evidence separately; do not assume every
+  required field is captured automatically.
 - An agent's completion statement is not evidence. R3 records an external
   artifact-grounded verdict, but the verdict is advisory and never discards
   the agent's persisted work.
@@ -358,11 +369,14 @@ plan.
 ## Project policies
 
 - [Contributing](CONTRIBUTING.md)
+- [Research reporting checklist](docs/research-reporting.md)
 - [Security](SECURITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)
 - [Public runbook](docs/runbook.md)
 - [Chinese public runbook](docs/runbook.zh-CN.md)
 - [Third-party notices](NOTICE.md)
+- [Citation metadata](CITATION.cff)
+- [License](LICENSE)
 
 This project is an alpha research integration. Reproduce claims from frozen
 revisions, complete episode records, and score artifacts rather than from log
