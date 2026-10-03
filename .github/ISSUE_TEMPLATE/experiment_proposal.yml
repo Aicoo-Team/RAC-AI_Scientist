@@ -1,0 +1,45 @@
+name: Experiment proposal
+description: Propose running more Runtime AI Scientist experiments (seeds, tasks, models, budgets, or benchmarks) before spending on them.
+title: "[Experiment] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for offering to run experiments. Freeze the design below before looking at outcomes, then run it and file a reproducibility report with the evidence in docs/research-reporting.md. This is a public form: do not include keys, private endpoints, SharedNet invites, benchmark answers, or private task data.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: >-
+        What do you want to learn, and which result in the paper or README does it
+        extend? For example, does R2's lead over N0 survive seeds 1-4 on the paper's tasks?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Frozen design
+      description: Hosts, conditions (N0-R3), ResearchClawBench task IDs or another benchmark, seeds, repeats, evaluated model, and the lifecycle budget per episode. Use the same budget for every compared condition.
+    validations:
+      required: true
+  - type: textarea
+    id: analysis
+    attributes:
+      label: Score and analysis plan
+      description: Primary score, aggregation, treatment of failed, budget-exhausted, or unscored episodes, and the comparison you will report (for example paired per-task differences).
+    validations:
+      required: true
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources and help needed
+      description: Expected number of episodes and estimated cost, where you will run them, and whether you need help with SharedNet Rooms, host images, or the judge setup.
+  - type: checkboxes
+    id: commitments
+    attributes:
+      label: Before submitting
+      options:
+        - label: I will keep failed and budget-exhausted episodes in the denominator and report them.
+          required: true
+        - label: I will share results through a reproducibility report, whatever the outcome.
+          required: true

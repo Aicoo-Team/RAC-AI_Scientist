@@ -1,4 +1,4 @@
-# RAC × AI Scientist 公共运行手册
+# Runtime AI Scientist 公共运行手册
 
 本文说明如何从公开源码准备、运行和评分一个 ResearchClawBench episode。
 示例不包含真实 endpoint、密钥、SharedNet invite、机器地址或私有目录。

@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rac-ai-scientist"
 version = "0.1.0a0"
-description = "Matched-budget RAC experiments across AI-scientist host systems"
+description = "Runtime AI Scientist: Runtime Agent Coordination (RAC) experiments across multi-agent AI-scientist hosts"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "RAC AI Scientist contributors"}]
-keywords = ["ai-scientist", "multi-agent", "evaluation", "reproducibility"]
+keywords = ["ai-scientist", "runtime-agent-coordination", "multi-agent", "automated-research", "researchclawbench", "evaluation", "reproducibility"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",
@@ -22,9 +22,10 @@ classifiers = [
 dependencies = ["openai>=1.0,<3"]
 
 [project.urls]
-Homepage = "https://github.com/FORLEMON/RAC-AI_Scientist"
-Repository = "https://github.com/FORLEMON/RAC-AI_Scientist"
-Issues = "https://github.com/FORLEMON/RAC-AI_Scientist/issues"
+Homepage = "https://github.com/systemind-team/Runtime-AI-Scientist"
+Repository = "https://github.com/systemind-team/Runtime-AI-Scientist"
+Issues = "https://github.com/systemind-team/Runtime-AI-Scientist/issues"
+Paper = "https://arxiv.org/abs/2610.00980"
 
 [project.scripts]
 rac-ai-scientist = "rac_ai_scientist.cli:main"

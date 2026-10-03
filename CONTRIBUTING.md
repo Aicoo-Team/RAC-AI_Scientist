@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for improving RAC × AI Scientist.
+Thank you for improving Runtime AI Scientist (formerly RAC × AI Scientist).
 
 This is an alpha research integration. Contributions to documentation, offline
 tests, host compatibility, and reproducibility are welcome. The supported hosts
@@ -12,6 +12,9 @@ are ARK, Agent Laboratory, and EvoScientist; the conditions are N0–R3.
   integration commit, environment, minimal reproduction, and expected behavior.
 - Use a **reproducibility report** for an unexpected experiment or scoring
   difference. Follow the [research reporting checklist](docs/research-reporting.md).
+- Use an **experiment proposal** to offer more seeds, tasks, models, budgets, or
+  benchmarks. Freeze the design before running and report every attempt; see
+  [Run more experiments with us](README.md#run-more-experiments-with-us).
 - Use a **feature request** to explain a proposed capability and its effect on
   existing experiments. Discuss new hosts or changes to condition semantics
   before investing in a large implementation.
@@ -30,8 +33,8 @@ Use Python 3.10 or newer. CI currently runs the offline suite on Python 3.10 and
 From a source checkout:
 
 ```bash
-git clone https://github.com/FORLEMON/RAC-AI_Scientist.git
-cd RAC-AI_Scientist
+git clone https://github.com/systemind-team/Runtime-AI-Scientist.git
+cd Runtime-AI-Scientist
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e .
