@@ -259,7 +259,7 @@ Each invocation appends an immutable record under `scores/`, and `score.json` po
 
 ## Run More Experiments With Us
 
-The paper is a single-seed exploratory study, so there is plenty left to test. Everything below can be run with this repository as it is. If you want to take one on, **open an issue first**. That way we can agree on the comparison before anyone looks at outcomes and avoid two groups paying for the same cells.
+The paper is a single-seed exploratory study, so there is plenty left to test. Everything below except a new benchmark can be run with this repository as it is. If you want to take one on, **open an issue first**. That way we can agree on the comparison before anyone looks at outcomes and avoid two groups paying for the same cells.
 
 ### Open experiments
 
@@ -268,7 +268,7 @@ The paper is a single-seed exploratory study, so there is plenty left to test. E
 - **Other evaluated models.** Swap `AGENT_MODEL_NAME` and keep everything else fixed. Is the effect model-dependent?
 - **Why R3 costs score.** Compare R2 and R3 at larger budgets and analyse the per-hop verdicts. Do contracts and verification pay off once the budget stops binding?
 - **Equal spend, not just equal limits.** Compare conditions at matched *consumed* tokens or cost, separating coordination quality from extra compute.
-- **Other benchmarks.** The paper includes a DiscoveryBench transfer study; other end-to-end research benchmarks are open.
+- **Other benchmarks.** The paper includes a DiscoveryBench transfer study, which is not part of this repository yet. Adapters for other end-to-end research benchmarks are welcome.
 
 ### How to contribute an experiment
 
