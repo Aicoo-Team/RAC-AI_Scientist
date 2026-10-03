@@ -89,15 +89,13 @@ N0 bypasses the RAC runner entirely. The integration layer invokes the host-owne
 ### How it fits together
 
 ```mermaid
-flowchart LR
-  T["ResearchClawBench task<br/>(target_study removed)"] --> S{"N0: host's native scheduler<br/>R1–R3: shared RAC runner"}
+flowchart TB
+  T["ResearchClawBench task, target_study removed"] --> S("N0: the host's native scheduler<br/>R1–R3: the shared RAC runner")
   S --> P["Shared N0–R3 policy<br/>selection · contracts · verification · budget"]
+  S -.-> L[("Append-only usage<br/>and decision ledger")]
   P --> B["HostBridge protocol"]
-  B --> H1["ARK"]
-  B --> H2["Agent Laboratory"]
-  B --> H3["EvoScientist"]
-  S --> L["Append-only usage and decision ledger"]
-  H1 & H2 & H3 --> R["Terminal report"] --> J["Isolated ResearchClawBench scorer"]
+  B --> H1["ARK"] & H2["Agent Laboratory"] & H3["EvoScientist"]
+  H1 & H2 & H3 --> R["Terminal report → isolated ResearchClawBench scorer"]
 ```
 
 Host bridges translate; they do not decide. A bridge maps native roles, stages, and files to capability cards and typed artifacts, invokes the requested native capability under a supplied contract, and reports usage and errors. Ranking capabilities, choosing retries, setting acceptance thresholds, and deciding when an episode stops all live in the shared package, so every host is compared under the same rules. The three hosts run in separate images because their dependency stacks conflict. See [docs/architecture.md](docs/architecture.md) for the full boundary.
