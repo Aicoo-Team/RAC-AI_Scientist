@@ -1,10 +1,49 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it using this metadata."
-title: "RAC × AI Scientist"
+message: "If you use Runtime AI Scientist, please cite the paper listed under preferred-citation."
+title: "Runtime AI Scientist"
+abstract: >-
+  Integration and evaluation layer for Runtime Agent Coordination (RAC) across
+  the multi-agent AI-scientist hosts ARK, Agent Laboratory, and EvoScientist,
+  evaluated on ResearchClawBench under the cumulative N0-R3 conditions.
 type: software
 version: 0.1.0-alpha
 date-released: 2026-09-30
 authors:
-  - name: "RAC AI Scientist contributors"
-repository-code: "https://github.com/FORLEMON/RAC-AI_Scientist"
+  - name: "Runtime AI Scientist contributors"
+repository-code: "https://github.com/systemind-team/Runtime-AI-Scientist"
 license: MIT
+keywords:
+  - ai-scientist
+  - runtime agent coordination
+  - multi-agent systems
+  - automated research
+  - ResearchClawBench
+preferred-citation:
+  type: article
+  title: "Can AI Scientists Coordinate at Runtime?"
+  authors:
+    - family-names: Liu
+      given-names: Zijian
+    - family-names: Luo
+      given-names: Yangzhixin
+    - family-names: Lu
+      given-names: Junyu
+    - family-names: Li
+      given-names: Yi
+    - family-names: Chen
+      given-names: Yu
+    - family-names: Xu
+      given-names: David
+    - family-names: Shen
+      given-names: William F.
+    - family-names: Qiu
+      given-names: Xinchi
+    - family-names: Wang
+      given-names: Xisen
+  journal: "arXiv preprint arXiv:2610.00980"
+  year: 2026
+  url: "https://arxiv.org/abs/2610.00980"
+  identifiers:
+    - type: doi
+      value: 10.48550/arXiv.2610.00980
+      description: arXiv DOI

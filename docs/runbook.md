@@ -1,4 +1,4 @@
-# RAC × AI Scientist Public Runbook
+# Runtime AI Scientist Public Runbook
 
 This runbook describes how to prepare, execute, score, and archive one
 ResearchClawBench episode from a source checkout. The examples intentionally
