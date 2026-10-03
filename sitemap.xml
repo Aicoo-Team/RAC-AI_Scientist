@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://systemind-team.github.io/Runtime-AI-Scientist/</loc>
+    <lastmod>2026-10-03</lastmod>
+    <video:video>
+      <video:thumbnail_loc>https://systemind-team.github.io/Runtime-AI-Scientist/assets/poster.jpg</video:thumbnail_loc>
+      <video:title>Runtime AI Scientist in 46 seconds</video:title>
+      <video:description>How Runtime Agent Coordination lets multi-agent AI scientists choose who acts next, and what it scored on ResearchClawBench.</video:description>
+      <video:content_loc>https://systemind-team.github.io/Runtime-AI-Scientist/assets/video/runtime-ai-scientist-en.mp4</video:content_loc>
+      <video:duration>46</video:duration>
+    </video:video>
+  </url>
+</urlset>

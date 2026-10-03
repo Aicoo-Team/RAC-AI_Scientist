@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runtime AI Scientist: Can AI Scientists Coordinate at Runtime?</title>
+<meta name="description" content="Runtime AI Scientist is the open-source code for the paper “Can AI Scientists Coordinate at Runtime?” (arXiv 2610.00980). Runtime Agent Coordination (RAC) lets multi-agent AI scientists such as ARK, Agent Laboratory, and EvoScientist choose who acts next from the live state of the research, evaluated on ResearchClawBench.">
+<meta name="keywords" content="Runtime AI Scientist, AI scientist, Runtime Agent Coordination, RAC, multi-agent AI scientists, Agent Laboratory, EvoScientist, ARK, ResearchClawBench, automated research">
+<link rel="canonical" href="https://systemind-team.github.io/Runtime-AI-Scientist/">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Runtime AI Scientist">
+<meta property="og:title" content="Runtime AI Scientist: Can AI Scientists Coordinate at Runtime?">
+<meta property="og:description" content="Open-source Runtime Agent Coordination (RAC) for multi-agent AI scientists: ARK, Agent Laboratory, and EvoScientist on ResearchClawBench. Paper, code, video, and how to run more experiments with us.">
+<meta property="og:url" content="https://systemind-team.github.io/Runtime-AI-Scientist/">
+<meta property="og:image" content="https://systemind-team.github.io/Runtime-AI-Scientist/assets/social-card.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:video" content="https://systemind-team.github.io/Runtime-AI-Scientist/assets/video/runtime-ai-scientist-en.mp4">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Runtime AI Scientist: Can AI Scientists Coordinate at Runtime?">
+<meta name="twitter:description" content="Runtime Agent Coordination (RAC) for multi-agent AI scientists. Paper, open-source code, and results on ResearchClawBench.">
+<meta name="twitter:image" content="https://systemind-team.github.io/Runtime-AI-Scientist/assets/social-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "Runtime AI Scientist",
+      "alternateName": ["RAC × AI Scientist", "rac-ai-scientist", "Runtime-AI-Scientist"],
+      "description": "Integration and evaluation layer for Runtime Agent Coordination (RAC) across the multi-agent AI-scientist hosts ARK, Agent Laboratory, and EvoScientist, evaluated on ResearchClawBench under the cumulative N0–R3 conditions.",
+      "url": "https://systemind-team.github.io/Runtime-AI-Scientist/",
+      "codeRepository": "https://github.com/systemind-team/Runtime-AI-Scientist",
+      "programmingLanguage": "Python",
+      "license": "https://opensource.org/licenses/MIT",
+      "keywords": "AI scientist, runtime agent coordination, multi-agent systems, automated research, ResearchClawBench",
+      "citation": "https://arxiv.org/abs/2610.00980"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "headline": "Can AI Scientists Coordinate at Runtime?",
+      "url": "https://arxiv.org/abs/2610.00980",
+      "sameAs": "https://doi.org/10.48550/arXiv.2610.00980",
+      "datePublished": "2026-10-01",
+      "author": [
+        {"@type": "Person", "name": "Zijian Liu"},
+        {"@type": "Person", "name": "Yangzhixin Luo"},
+        {"@type": "Person", "name": "Junyu Lu"},
+        {"@type": "Person", "name": "Yi Li"},
+        {"@type": "Person", "name": "Yu Chen"},
+        {"@type": "Person", "name": "David Xu"},
+        {"@type": "Person", "name": "William F. Shen"},
+        {"@type": "Person", "name": "Xinchi Qiu"},
+        {"@type": "Person", "name": "Xisen Wang"}
+      ]
+    },
+    {
+      "@type": "VideoObject",
+      "name": "Runtime AI Scientist in 46 seconds",
+      "description": "How Runtime Agent Coordination lets multi-agent AI scientists choose who acts next, and what it scored on ResearchClawBench.",
+      "thumbnailUrl": "https://systemind-team.github.io/Runtime-AI-Scientist/assets/poster.jpg",
+      "contentUrl": "https://systemind-team.github.io/Runtime-AI-Scientist/assets/video/runtime-ai-scientist-en.mp4",
+      "uploadDate": "2026-10-03",
+      "duration": "PT46S"
+    }
+  ]
+}
+</script>
+<style>
+@font-face { font-family: "Noto Serif"; font-weight: 400; font-display: swap; src: url(assets/fonts/noto-serif-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Noto Serif"; font-weight: 600; font-display: swap; src: url(assets/fonts/noto-serif-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url(assets/fonts/inter-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url(assets/fonts/inter-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url(assets/fonts/inter-latin-600-normal.woff2) format("woff2"); }
+
+:root {
+  --oxford: #002147;
+  --oxford-deep: #00142c;
+  --atlantic: #2E6FA8;
+  --columbia: #B9D9EB;
+  --gold: #E9A83E;
+  --gold-ink: #9a6410;
+  --bg: #F7F9FB;
+  --surface: #FFFFFF;
+  --text: #0E1E33;
+  --muted: #4A5B70;
+  --line: #DCE5EE;
+  --code-bg: #F0F4F8;
+  --serif: "Noto Serif", Georgia, serif;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #00142c;
+    --surface: #04213f;
+    --text: #EEF4F9;
+    --muted: #A9BED0;
+    --line: #12385f;
+    --code-bg: #031a33;
+    --gold-ink: #E9A83E;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 var(--sans); }
+a { color: var(--atlantic); text-underline-offset: 3px; }
+@media (prefers-color-scheme: dark) { a { color: var(--columbia); } }
+img, video { max-width: 100%; display: block; }
+
+.hero {
+  background: radial-gradient(ellipse 90% 80% at 50% 0%, #07386b 0%, var(--oxford) 50%, var(--oxford-deep) 100%);
+  color: #F3F7FA;
+  text-align: center;
+  padding: 72px 16px 132px;
+}
+.kicker { font-weight: 600; font-size: 13px; letter-spacing: .28em; color: var(--gold); text-transform: uppercase; }
+.hero h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(40px, 7vw, 76px); line-height: 1.08; margin: 18px 0 6px; letter-spacing: -.01em; }
+.hero .paper-title { font-family: var(--serif); font-size: clamp(20px, 3vw, 28px); color: #D6E6F2; margin: 0; }
+.rule { width: 120px; height: 3px; background: var(--gold); border-radius: 2px; margin: 26px auto; }
+.authors { max-width: 860px; margin: 0 auto; font-size: 16px; color: #E3EDF5; }
+.affils { margin: 8px auto 0; font-size: 14px; color: #A9BED0; }
+.buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 30px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 999px; font-weight: 600; font-size: 15px; text-decoration: none; color: #F3F7FA; border: 1px solid rgba(185, 217, 235, .35); background: rgba(255, 255, 255, .04); }
+.btn:hover { border-color: var(--gold); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--oxford-deep); }
+.btn svg { width: 17px; height: 17px; fill: currentColor; }
+
+main { max-width: 980px; margin: 0 auto; padding: 0 16px 64px; }
+.video-card { margin-top: -96px; background: #000; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(0, 20, 44, .35); }
+.video-card video { width: 100%; aspect-ratio: 16 / 9; background: #00142c; }
+.video-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 10px 4px 0; font-size: 14px; color: var(--muted); }
+.lang-toggle button { font: inherit; color: var(--muted); background: none; border: 0; padding: 0 0 0 12px; cursor: pointer; }
+.lang-toggle button[aria-pressed="true"] { color: var(--text); font-weight: 600; }
+
+section { margin-top: 64px; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.4vw, 34px); line-height: 1.2; margin: 0 0 18px; }
+h2 .num { color: var(--gold-ink); margin-right: 10px; }
+p { margin: 0 0 16px; }
+.lead { font-size: 19px; }
+figure { margin: 24px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+figcaption { font-size: 14px; color: #4A5B70; margin-top: 12px; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.best td { font-weight: 600; }
+tr.best td.num { color: var(--gold-ink); }
+.id { font-weight: 600; white-space: nowrap; }
+.note { font-size: 15px; color: var(--muted); margin-top: 14px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; }
+.card h3 { font-size: 16px; margin: 0 0 6px; }
+.card p { font-size: 15px; color: var(--muted); margin: 0; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.cta .btn { color: var(--text); border-color: var(--line); background: var(--surface); }
+.cta .btn.primary { color: var(--oxford-deep); background: var(--gold); border-color: var(--gold); }
+
+pre { position: relative; background: var(--code-bg); border: 1px solid var(--line); border-radius: 12px; padding: 18px; overflow-x: auto; font: 14px/1.55 var(--mono); margin: 0; }
+.copy { position: absolute; top: 10px; right: 10px; font: 600 13px var(--sans); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+code { font-family: var(--mono); font-size: .92em; }
+
+footer { border-top: 1px solid var(--line); padding: 28px 16px 40px; text-align: center; font-size: 14px; color: var(--muted); }
+footer img { height: 26px; margin: 0 auto 12px; }
+.logo-dark { display: none; }
+@media (prefers-color-scheme: dark) { .logo-light { display: none; } .logo-dark { display: block; } }
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .hero { padding: 56px 16px 96px; }
+  .video-card { margin-top: -64px; border-radius: 12px; }
+  th, td { padding: 10px 12px; }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="kicker">arXiv 2610.00980 · Open source</div>
+  <h1>Runtime AI Scientist</h1>
+  <p class="paper-title">Can AI Scientists Coordinate at Runtime?</p>
+  <div class="rule"></div>
+  <div class="authors">Zijian Liu, Yangzhixin Luo, Junyu Lu, Yi Li, Yu Chen, David Xu, William F. Shen, Xinchi Qiu, Xisen Wang</div>
+  <div class="affils">University of Oxford · King Abdullah University of Science and Technology · University of Sydney · University of Cambridge</div>
+  <nav class="buttons" aria-label="Project links">
+    <a class="btn primary" href="https://arxiv.org/abs/2610.00980"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5z"/></svg>Paper</a>
+    <a class="btn" href="https://github.com/systemind-team/Runtime-AI-Scientist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>Code</a>
+    <a class="btn" href="#video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Video</a>
+    <a class="btn" href="#cite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>BibTeX</a>
+  </nav>
+</header>
+
+<main>
+  <div class="video-card" id="video">
+    <video id="promo" controls playsinline preload="metadata" poster="assets/poster.jpg">
+      <source src="assets/video/runtime-ai-scientist-en.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="video-meta">
+    <span>Runtime AI Scientist in 46 seconds</span>
+    <span class="lang-toggle" role="group" aria-label="Video language">
+      <button type="button" data-src="assets/video/runtime-ai-scientist-en.mp4" aria-pressed="true">English</button>
+      <button type="button" data-src="assets/video/runtime-ai-scientist-zh.mp4" aria-pressed="false">中文</button>
+    </span>
+  </div>
+
+  <section id="abstract">
+    <h2>Abstract</h2>
+    <p class="lead">Multi-agent AI scientists have shown improving performance across a diverse range of tasks. Yet a common approach is design-time agentic orchestration, which typically relies on fixed workflows. In contrast, human scientists coordinate and adjust their division of labor at runtime. We therefore ask: can AI scientists also coordinate at runtime?</p>
+    <p>To this end, we introduce <strong>Runtime Agent Coordination (RAC)</strong>, which selects agents from existing AI-scientist hosts during execution, assigns scoped work contracts, and provides artifact-grounded verification. Verification informs subsequent agents without blocking transitions or discarding artifacts. We conduct a single-seed exploratory evaluation across Agent Laboratory, EvoScientist, and ARK on ResearchClawBench, preserving host models, tools, and permissions under host-calibrated budgets. Four cumulative conditions separate native execution, runtime communication, runtime selection, and the combined addition of contracts and verification. Runtime selection yields the highest observed mean score for each host; adding contracts and verification reduces these means, with host-dependent outcomes relative to native execution. These results motivate runtime coordination while exposing the limits of additional coordination mechanisms under constrained budgets.</p>
+    <figure>
+      <img src="assets/rac-overview.png" width="2045" height="1212" loading="lazy" alt="Same agents, different coordination: native fixed workflows versus Runtime Agent Coordination, with controlled factors, the RAC decision loop, and the N0–R3 condition ladder">
+      <figcaption><strong>Same agents, different coordination.</strong> Native transitions versus state-dependent selection by the current agent. Agents, models, tools, permissions, and run-level budget are held fixed; the cumulative conditions add communication (R1), runtime selection (R2), and contracts plus verification (R3) to the native lifecycle (N0).</figcaption>
+    </figure>
+  </section>
+
+  <section id="conditions">
+    <h2><span class="num">01</span>Four cumulative conditions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Configuration</th><th>What it adds</th></tr></thead>
+        <tbody>
+          <tr><td class="id">N0</td><td>Native lifecycle</td><td>The host's own scheduler runs end to end, with no RAC phase loop and no extra communication.</td></tr>
+          <tr><td class="id">R1</td><td>Runtime communication</td><td>Agents exchange requests, results, and artifacts; every handoff still goes to the host's native successor.</td></tr>
+          <tr><td class="id">R2</td><td>+ Runtime selection</td><td>The current agent selects the next host capability from a fresh checkpoint, without a separate orchestrator.</td></tr>
+          <tr><td class="id">R3</td><td>+ Contracts and verification</td><td>Scoped work contracts, plus a <code>supported</code>, <code>refuted</code>, or <code>inconclusive</code> verdict passed to the next agent. It never blocks, retries, or rolls back.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="results">
+    <h2><span class="num">02</span>Results on ResearchClawBench</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Condition</th><th class="num">ARK</th><th class="num">Agent Laboratory</th><th class="num">EvoScientist</th></tr></thead>
+        <tbody>
+          <tr><td>N0: Native lifecycle</td><td class="num">16.66</td><td class="num">5.47</td><td class="num">15.99</td></tr>
+          <tr><td>R1: Runtime communication</td><td class="num">17.40</td><td class="num">9.63</td><td class="num">12.07</td></tr>
+          <tr class="best"><td>R2: + Runtime selection</td><td class="num">18.42</td><td class="num">12.08</td><td class="num">18.53</td></tr>
+          <tr><td>R3: + Contracts and verification</td><td class="num">17.98</td><td class="num">9.88</td><td class="num">15.96</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Mean score per host and condition (Table 3 of the paper); tasks are equally weighted and recorded zeros retained. This is a single-seed exploratory evaluation on 10 ResearchClawBench tasks (5 for ARK) under host-calibrated budgets. Token usage, estimated cost, task-level scores, and a DiscoveryBench transfer study are in the paper.</p>
+  </section>
+
+  <section id="get-involved">
+    <h2><span class="num">03</span>Run more experiments with us</h2>
+    <p>Everything in the paper can be rerun from the open-source integration: one shared N0–R3 policy, isolated Docker images for each host, revision-pinned upstreams, and an external scorer that alone sees the benchmark targets. The most useful next experiments are the ones a single-seed study leaves open.</p>
+    <div class="cards">
+      <div class="card"><h3>More seeds</h3><p>Repeat N0 and R2 on the paper's tasks with new seeds. Does runtime selection keep its lead?</p></div>
+      <div class="card"><h3>More tasks and domains</h3><p>ResearchClawBench has far more tasks than the paper ran. Find where runtime selection helps and where it hurts.</p></div>
+      <div class="card"><h3>Other models and budgets</h3><p>Swap the evaluated model, or compare at equal spend. Is the effect model- or budget-dependent?</p></div>
+      <div class="card"><h3>New AI-scientist hosts</h3><p>Expose another system's roles through the <code>HostBridge</code> protocol and compare it under the same rules.</p></div>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/systemind-team/Runtime-AI-Scientist/issues/new?template=experiment_proposal.yml">Propose an experiment</a>
+      <a class="btn" href="https://github.com/systemind-team/Runtime-AI-Scientist#run-more-experiments-with-us">How to contribute</a>
+      <a class="btn" href="https://github.com/systemind-team/Runtime-AI-Scientist/blob/main/docs/runbook.md">Runbook</a>
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <h2><span class="num">04</span>Quickstart</h2>
+    <pre><code>git clone https://github.com/systemind-team/Runtime-AI-Scientist.git
+cd Runtime-AI-Scientist
+python -m venv .venv &amp;&amp; . .venv/bin/activate
+python -m pip install -e .
+python -m unittest discover -s tests -v   # offline checks, no model calls
+rac-ai-scientist --help</code></pre>
+    <p class="note">Live episodes need Linux with Docker Compose, an OpenAI-compatible endpoint for the evaluated model, and a judge model for scoring. See the <a href="https://github.com/systemind-team/Runtime-AI-Scientist#readme">README</a> and the <a href="https://github.com/systemind-team/Runtime-AI-Scientist/blob/main/docs/runbook.md">runbook</a> (<a href="https://github.com/systemind-team/Runtime-AI-Scientist/blob/main/docs/runbook.zh-CN.md">中文</a>).</p>
+  </section>
+
+  <section id="cite">
+    <h2><span class="num">05</span>Citation</h2>
+    <pre id="bibtex"><button class="copy" type="button" data-copy="bibtex-text">Copy</button><code id="bibtex-text">@misc{liu2026aiscientistscoordinateruntime,
+  title         = {Can AI Scientists Coordinate at Runtime?},
+  author        = {Zijian Liu and Yangzhixin Luo and Junyu Lu and Yi Li and Yu Chen and David Xu and William F. Shen and Xinchi Qiu and Xisen Wang},
+  year          = {2026},
+  eprint        = {2610.00980},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.MA},
+  url           = {https://arxiv.org/abs/2610.00980}
+}</code></pre>
+  </section>
+</main>
+
+<footer>
+  <a href="https://systemind.io" aria-label="Systemind">
+    <img class="logo-light" src="assets/systemind-lockup-light.svg" alt="SysteMind Inc.">
+    <img class="logo-dark" src="assets/systemind-lockup-dark.svg" alt="SysteMind Inc.">
+  </a>
+  Runtime AI Scientist is open source under the MIT License and maintained in the
+  <a href="https://github.com/systemind-team">systemind-team</a> GitHub organization.<br>
+  Upstream hosts and the benchmark keep their own licenses.
+</footer>
+
+<script>
+  document.querySelectorAll('.lang-toggle button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var video = document.getElementById('promo');
+      document.querySelectorAll('.lang-toggle button').forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+      video.querySelector('source').src = btn.dataset.src;
+      video.load();
+      video.play().catch(function () {});
+    });
+  });
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = document.getElementById(btn.dataset.copy).textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+      });
+    });
+  });
+</script>
+</body>
+</html>
