@@ -7,6 +7,8 @@
 
 <p align="center">
   📄 <a href="https://arxiv.org/abs/2610.00980">[Paper]</a> |
+  🌐 <a href="https://systemind-team.github.io/Runtime-AI-Scientist/">[Project Page]</a> |
+  🎬 <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video">[Video]</a> |
   📖 <a href="docs/runbook.md">[Runbook]</a> |
   🧪 <a href="#run-more-experiments-with-us">[Run Experiments With Us]</a> |
   📝 <a href="#citing-runtime-ai-scientist">[Cite]</a>
@@ -27,6 +29,7 @@ This repository is the integration and evaluation layer behind the paper: one sh
 
 ### News
 
+- **2026-10-03** — [Project page](https://systemind-team.github.io/Runtime-AI-Scientist/) and a 46-second [video overview](https://systemind-team.github.io/Runtime-AI-Scientist/#video) (English and 中文).
 - **2026-10-01** — The paper is on arXiv: [Can AI Scientists Coordinate at Runtime?](https://arxiv.org/abs/2610.00980)
 - **2026-09-30** — `v0.1.0-alpha`: the public N0–R3 integration for ARK, Agent Laboratory, and EvoScientist.
 
@@ -45,6 +48,11 @@ Runtime selection (R2) has the highest observed mean for every host. Adding cont
 
 > [!CAUTION]
 > Live episodes run LLM agents that write and execute code inside the host containers. Run them in Docker on a machine you can isolate, keep credentials out of task bundles, and set a lifecycle budget for every episode. The offline checks below make no model calls.
+
+<p align="center">
+  <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video"><img src="docs/assets/rac-preview.gif" width="80%" alt="Runtime Agent Coordination in action: at each handoff the current agent selects the next agent from the live research state"></a><br>
+  <sub>🎬 Watch the 46-second overview: <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video">English</a> · <a href="https://systemind-team.github.io/Runtime-AI-Scientist/assets/video/runtime-ai-scientist-zh.mp4">中文</a></sub>
+</p>
 
 ## Table of Contents
 
