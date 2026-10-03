@@ -7,6 +7,8 @@
 
 <p align="center">
   📄 <a href="https://arxiv.org/abs/2610.00980">[Paper]</a> |
+  🌐 <a href="https://systemind-team.github.io/Runtime-AI-Scientist/">[Project Page]</a> |
+  🎬 <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video">[Video]</a> |
   📖 <a href="docs/runbook.md">[Runbook]</a> |
   🧪 <a href="#run-more-experiments-with-us">[Run Experiments With Us]</a> |
   📝 <a href="#citing-runtime-ai-scientist">[Cite]</a>
@@ -27,6 +29,7 @@ This repository is the integration and evaluation layer behind the paper: one sh
 
 ### News
 
+- **2026-10-03** — [Project page](https://systemind-team.github.io/Runtime-AI-Scientist/) and a 46-second [video overview](https://systemind-team.github.io/Runtime-AI-Scientist/#video) (English and 中文).
 - **2026-10-01** — The paper is on arXiv: [Can AI Scientists Coordinate at Runtime?](https://arxiv.org/abs/2610.00980)
 - **2026-09-30** — `v0.1.0-alpha`: the public N0–R3 integration for ARK, Agent Laboratory, and EvoScientist.
 
@@ -45,6 +48,11 @@ Runtime selection (R2) has the highest observed mean for every host. Adding cont
 
 > [!CAUTION]
 > Live episodes run LLM agents that write and execute code inside the host containers. Run them in Docker on a machine you can isolate, keep credentials out of task bundles, and set a lifecycle budget for every episode. The offline checks below make no model calls.
+
+<p align="center">
+  <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video"><img src="docs/assets/rac-preview.gif" width="80%" alt="Runtime Agent Coordination in action: at each handoff the current agent selects the next agent from the live research state"></a><br>
+  <sub>🎬 Watch the 46-second overview: <a href="https://systemind-team.github.io/Runtime-AI-Scientist/#video">English</a> · <a href="https://systemind-team.github.io/Runtime-AI-Scientist/assets/video/runtime-ai-scientist-zh.mp4">中文</a></sub>
+</p>
 
 ## Table of Contents
 
@@ -251,7 +259,7 @@ Each invocation appends an immutable record under `scores/`, and `score.json` po
 
 ## Run More Experiments With Us
 
-The paper is a single-seed exploratory study, so there is plenty left to test. Everything below can be run with this repository as it is. If you want to take one on, **open an issue first**. That way we can agree on the comparison before anyone looks at outcomes and avoid two groups paying for the same cells.
+The paper is a single-seed exploratory study, so there is plenty left to test. Everything below except a new benchmark can be run with this repository as it is. If you want to take one on, **open an issue first**. That way we can agree on the comparison before anyone looks at outcomes and avoid two groups paying for the same cells.
 
 ### Open experiments
 
@@ -260,7 +268,7 @@ The paper is a single-seed exploratory study, so there is plenty left to test. E
 - **Other evaluated models.** Swap `AGENT_MODEL_NAME` and keep everything else fixed. Is the effect model-dependent?
 - **Why R3 costs score.** Compare R2 and R3 at larger budgets and analyse the per-hop verdicts. Do contracts and verification pay off once the budget stops binding?
 - **Equal spend, not just equal limits.** Compare conditions at matched *consumed* tokens or cost, separating coordination quality from extra compute.
-- **Other benchmarks.** The paper includes a DiscoveryBench transfer study; other end-to-end research benchmarks are open.
+- **Other benchmarks.** The paper includes a DiscoveryBench transfer study, which is not part of this repository yet. Adapters for other end-to-end research benchmarks are welcome.
 
 ### How to contribute an experiment
 
